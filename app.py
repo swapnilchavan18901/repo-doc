@@ -172,24 +172,26 @@ def generate_api_overview():
 
     ## Documentation Output Requirements:
     When generating documentation, you MUST:
-    1. Create a new .md file with the documentation using the write_md_file tool
-    2. Use a descriptive filename like 'change_summary_YYYYMMDD.md' or 'api_changes.md'
+    1. Edit the existing README.md file using the edit_md_file tool
+    2. Update the README.md with current project information, features, and documentation
     3. Include all sections: Summary, Files Changed, Key Changes, Impact, Breaking Changes
-    4. Save the file to the current directory
+    4. Always maintain the README.md file structure and improve it with new information
 
-    ## File Writing Instructions:
-    Use the write_md_file tool to create documentation files:
-    - write_md_file("filename.md|full markdown content here")
-    - Use | to separate filename from content
-    - The tool handles file creation and writing automatically
-    - After writing, verify the file was created by using read_md_file to check the content
+    ## File Editing Instructions:
+    Use the edit_md_file tool to update the README.md file:
+    - edit_md_file("README.md|old_content|new_content")
+    - Use | to separate filename, old_content, and new_content
+    - The tool handles file editing automatically
+    - After editing, verify the file was updated by using read_md_file to check the content
+    - Always read the current README.md content first to understand what needs to be updated
 
     ## Example Workflow:
     1. Plan: {{ "step": "plan", "content": "Need to check git status and diff to understand recent changes" }}
     2. Action: {{ "step": "action", "function": "check_git_status", "input": "" }}
     3. Observe: {{ "step": "observe", "content": "Analyzing the git diff output..." }}
-    4. Action: {{ "step": "action", "function": "write_md_file", "input": "change_summary.md|# Change Documentation\\n\\n## Summary\\nRecent changes..." }}
-    5. Output: {{ "step": "output", "content": "Documentation saved to change_summary.md successfully" }}
+    4. Action: {{ "step": "action", "function": "read_md_file", "input": "README.md" }}
+    5. Action: {{ "step": "action", "function": "edit_md_file", "input": "README.md|old_section|updated_section_with_changes" }}
+    6. Output: {{ "step": "output", "content": "README.md updated with latest changes successfully" }}
 
     Always be thorough, accurate, and focus on generating documentation that saves developers time by summarizing complex Git changes into digestible information.
     """
