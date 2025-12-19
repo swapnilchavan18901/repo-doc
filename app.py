@@ -18,6 +18,12 @@ def add (a: int, b: int):
 def subtract (a: int, b: int):
     return a - b
 
+def multiply (a: int, b: int):
+    return a * b
+
+def divide (a: int, b: int):
+    return a / b
+
 def check_git_status(input: str = ""):
         status = subprocess.check_output(["git", "status"], text=True)
         diff = subprocess.check_output(["git", "diff"], text=True)
@@ -103,11 +109,27 @@ def edit_md_file(input_str: str):
         with open(filename, 'r', encoding='utf-8') as f:
             current_content = f.read()
 
-        if old_content not in current_content:
-            return {"success": False, "error": "Old content not found in file", "filename": filename}
+        # Normalize content for better matching (strip whitespace and normalize line endings)
+        def normalize_content(content):
+            return content.strip().replace('\r\n', '\n').replace('\r', '\n')
 
-        # Replace content
-        updated_content = current_content.replace(old_content, new_content, 1)
+        normalized_old = normalize_content(old_content)
+        normalized_current = normalize_content(current_content)
+
+        # Try exact match first
+        if old_content in current_content:
+            updated_content = current_content.replace(old_content, new_content, 1)
+        elif normalized_old in normalized_current:
+            # Fallback: try normalized matching
+            updated_content = current_content.replace(normalized_old, new_content, 1)
+        else:
+            # If still no match, provide detailed error with suggestions
+            return {
+                "success": False,
+                "error": "Old content not found in file. This may be due to encoding issues, whitespace differences, or content changes.",
+                "filename": filename,
+                "suggestion": "Consider using write_md_file to overwrite the entire file instead of edit_md_file for complex edits."
+            }
 
         # Write back
         with open(filename, 'w', encoding='utf-8') as f:
@@ -142,7 +164,8 @@ def generate_api_overview():
         readme_content = file.read()
     SYSTEM_PROMPT = f"""
     You are an AI Documentation Agent specialized in generating comprehensive documentation for software projects.
-    The README.md file is the main documentation file for the project. You use Git status and diff information to understand what the project does and what needs to be documented.
+    The README.md file is the main documentation file for the project. You use ONLY Git status and diff information (via the check_git_status function) to understand what the project does and what needs to be documented.
+    IMPORTANT: You will NOT scan or read any files other than README.md directly - all project understanding must come from Git status information.
 
     ## Workflow Process:
     You must follow a strict step-by-step workflow using JSON responses:
@@ -175,16 +198,17 @@ def generate_api_overview():
     Use the edit_md_file tool to update the README.md file:
     - edit_md_file("README.md|old_content|new_content")
     - Use | to separate filename, old_content, and new_content
-    - The tool handles file editing automatically
+    - The tool handles file editing automatically with robust content matching
+    - If edit_md_file fails due to content matching issues, use write_md_file as fallback: write_md_file("README.md|complete_new_content")
     - After editing, verify the file was updated by using read_md_file to check the content
     - Always read the current README.md content first to understand what needs to be updated
+    - For complex edits, prefer write_md_file over edit_md_file to avoid matching issues
 
     ## Example Workflow:
     1. Plan: {{ "step": "plan", "content": "Need to analyze the project structure and current functionality" }}
     2. Action: {{ "step": "action", "function": "check_git_status", "input": "" }}
-    3. Observe: {{ "step": "observe", "content": "Analyzing project files and functionality..." }}
+    3. Observe: {{ "step": "observe", "content": "Analyzing project files with check_git_status function and functionality..." }}
     4. Action: {{ "step": "action", "function": "read_md_file", "input": "README.md" }}
-    5. Action: {{ "step": "action", "function": "read_md_file", "input": "app.py" }}
     6. Action: {{ "step": "action", "function": "edit_md_file", "input": "README.md|current_content|comprehensive_updated_content" }}
     7. Output: {{ "step": "output", "content": "Comprehensive README.md documentation generated successfully" }}
 
