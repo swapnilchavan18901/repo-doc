@@ -3,44 +3,9 @@ import os
 import subprocess
 from openai import OpenAI
 from dotenv import load_dotenv
-from routes import base, examples
-from fastapi import APIRouter, FastAPI
-
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
-def get_app() -> FastAPI:
-    """Creates and returns FastAPI app with routes attached"""
-    app = FastAPI()
-
-    # Add base route at localhost:8000
-    app.include_router(base.router)
-
-    # Add additional routes under localhost:8000/api
-    app.include_router(get_router(), prefix="/api")
-    return app
-
-def get_router() -> APIRouter:
-    """Creates router that will contain additional routes under localhost:8000/api"""
-    router = APIRouter()
-
-    # Example route
-    router.include_router(examples.router, prefix="/example")
-    return router
-
-app = get_app()
-
-def add (a: int, b: int):
-    return a + b
-
-def subtract (a: int, b: int):
-    return a - b
-
-def multiply (a: int, b: int):
-    return a * b
-
 def check_git_status(input: str = ""):
         status = subprocess.check_output(["git", "status"], text=True)
         diff = subprocess.check_output(["git", "diff"], text=True)
@@ -173,10 +138,8 @@ available_tools = {
     "write_md_file": write_md_file,
     "edit_md_file": edit_md_file,
     "list_md_files": list_md_files,
-    "add": add
 }
-@app.get("/generate_api_overview")
-def generate_api_overview():
+def generate_feature_docs():
     with open("README.md", "r") as file:
         readme_content = file.read()
     SYSTEM_PROMPT = f"""
@@ -295,3 +258,5 @@ def generate_api_overview():
 
     return {"content": parsed_response.get("content")}
 
+if __name__ == "__main__":
+    generate_feature_docs()

@@ -1,4 +1,11 @@
-fastapi
-uvicorn
-python-dotenv
+
 openai        # or openrouter sdk
+aiohttp
+black
+fastapi
+flake8
+markdown2
+python-dotenv
+requests
+uvicorn
+ujson

@@ -3,44 +3,9 @@ import os
 import subprocess
 from openai import OpenAI
 from dotenv import load_dotenv
-from routes import base, examples
-from fastapi import APIRouter, FastAPI
-
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
-def get_app() -> FastAPI:
-    """Creates and returns FastAPI app with routes attached"""
-    app = FastAPI()
-
-    # Add base route at localhost:8000
-    app.include_router(base.router)
-
-    # Add additional routes under localhost:8000/api
-    app.include_router(get_router(), prefix="/api")
-    return app
-
-def get_router() -> APIRouter:
-    """Creates router that will contain additional routes under localhost:8000/api"""
-    router = APIRouter()
-
-    # Example route
-    router.include_router(examples.router, prefix="/example")
-    return router
-
-app = get_app()
-
-def add (a: int, b: int):
-    return a + b
-
-def subtract (a: int, b: int):
-    return a - b
-
-def multiply (a: int, b: int):
-    return a * b
-
 def check_git_status(input: str = ""):
         status = subprocess.check_output(["git", "status"], text=True)
         diff = subprocess.check_output(["git", "diff"], text=True)
@@ -166,33 +131,62 @@ def list_md_files(data: str = ""):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+def read_file(filename: str):
+    """Read content from any file in the project structure"""
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            return {"success": True, "content": f.read(), "filename": filename}
+    except FileNotFoundError:
+        return {"success": False, "error": f"File {filename} not found", "filename": filename}
+    except UnicodeDecodeError:
+        return {"success": False, "error": f"File {filename} cannot be decoded as UTF-8 text", "filename": filename}
+    except Exception as e:
+        return {"success": False, "error": str(e), "filename": filename}
+
+def list_project_files(data: str = ""):
+    """List all files in the project directory structure"""
+    try:
+        all_files = []
+        for root, dirs, files in os.walk('.'):
+            # Skip certain directories
+            dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'venv', 'node_modules', '.next']]
+            for file in files:
+                # Skip certain file types
+                if not file.startswith('.') and not file.endswith(('.pyc', '.log')):
+                    filepath = os.path.join(root, file)
+                    all_files.append(filepath)
+
+        return {"success": True, "files": sorted(all_files), "count": len(all_files)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 available_tools = {
     "check_git_status": check_git_status,
     "run_command": run_command,
     "read_md_file": read_md_file,
+    "read_file": read_file,
     "write_md_file": write_md_file,
     "edit_md_file": edit_md_file,
     "list_md_files": list_md_files,
-    "add": add
+    "list_project_files": list_project_files,
 }
-@app.get("/generate_api_overview")
-def generate_api_overview():
-    with open("README.md", "r") as file:
+def generate_feature_docs():
+    with open("FEATUREREADME.md", "r") as file:
         readme_content = file.read()
     SYSTEM_PROMPT = f"""
-    You are an AI Documentation Agent specialized in generating comprehensive documentation for software projects.
-    The README.md file is the main documentation file for the project. You use ONLY Git status and diff information (via the check_git_status function) to understand what the project does and what needs to be documented.
-    IMPORTANT: You will NOT scan or read any files other than README.md directly - all project understanding must come from Git status information.
+    You are an AI Documentation Agent specialized in generating comprehensive, feature-focused documentation for software projects.
+    You can read any file in the project structure to understand features, functionality, and implementation details.
+    Your primary goal is to create detailed, feature-level documentation that helps developers understand and use each capability effectively.
 
     ## Workflow Process:
     You must follow a strict step-by-step workflow using JSON responses:
 
     ### Step Types:
-    1. **plan**: Analyze what information you need and plan your approach
-    2. **action**: Call a tool to gather information
-    3. **observe**: Process tool results and plan next steps
-    4. **write**: Write comprehensive documentation to .md files using write_md_file tool
-    5. **output**: Provide final summary (after files are written)
+    1. **plan**: Analyze what information you need and plan your approach to feature documentation
+    2. **action**: Call a tool to gather information about project features and functionality
+    3. **observe**: Process tool results and analyze specific features and capabilities
+    4. **write**: Write comprehensive feature documentation to .md files
+    5. **output**: Provide final summary (after documentation is written)
 
     ### JSON Response Format:
     {{
@@ -202,34 +196,66 @@ def generate_api_overview():
         "input": "tool_input"      // only for action steps
     }}
 
-    ## Documentation Output Requirements:
+    ## Feature-Focused Documentation Requirements:
     When generating documentation, you MUST:
-    1. Create comprehensive, complete documentation that fully describes the project
-    2. Use Git status and diff to understand the current state and functionality of the project
-    3. Update the README.md file with complete project information, features, API endpoints, usage examples, and technical details
-    4. Maintain a professional, well-structured README.md that serves as the single source of truth for the project
-    5. Include all necessary sections for a complete project README (features, installation, usage, API docs, etc.)
-    6. Focus on creating documentation that helps developers understand and use the project effectively
+
+    ### 1. **Feature Discovery & Analysis**
+    - Read and analyze all relevant source code files to understand features
+    - Identify core functionality, APIs, services, and user-facing capabilities
+    - Map out the complete feature set and how components interact
+    - Understand configuration options, dependencies, and setup requirements
+
+    ### 2. **Detailed Feature Documentation**
+    - Document each major feature with clear descriptions, usage examples, and technical details
+    - Include API endpoints, parameters, request/response formats, and error handling
+    - Explain configuration options and environment variables
+    - Provide code examples for each feature implementation
+    - Document any CLI commands, scripts, or tools included
+
+    ### 3. **Developer Experience Focus**
+    - Create documentation that helps developers quickly understand and implement features
+    - Include practical examples and common use cases for each feature
+    - Document integration patterns and best practices
+    - Explain setup, configuration, and deployment procedures
+
+    ### 4. **Comprehensive FEATUREREADME Structure**
+    - **Project Overview**: Clear description of what the project does and its main features
+    - **Feature Catalog**: Detailed breakdown of each major feature with examples
+    - **Quick Start**: Step-by-step setup and basic usage
+    - **API Reference**: Complete endpoint documentation with examples
+    - **Configuration**: All settings, environment variables, and options
+    - **Examples**: Practical code examples for common use cases
+    - **Contributing**: Development setup and contribution guidelines
+
+    ## File Reading Strategy:
+    - Start by listing all project files to understand the structure
+    - Read key source files (app.py, main modules, configuration files)
+    - Analyze route definitions, service implementations, and model structures
+    - Read existing documentation to understand current feature coverage
+    - Focus on understanding the complete feature set before writing documentation
 
     ## File Editing Instructions:
-    Use the edit_md_file tool to update the README.md file:
-    - edit_md_file("README.md|old_content|new_content")
-    - Use | to separate filename, old_content, and new_content
-    - The tool handles file editing automatically with robust content matching
-    - If edit_md_file fails due to content matching issues, use write_md_file as fallback: write_md_file("README.md|complete_new_content")
-    - After editing, verify the file was updated by using read_md_file to check the content
-    - Always read the current README.md content first to understand what needs to be updated
-    - For complex edits, prefer write_md_file over edit_md_file to avoid matching issues
+    - Use read_file() to examine any file in the project structure
+    - Use list_project_files() to understand the complete project layout
+    - Use write_md_file for creating/updating the FEATUREREADME.md file
+    - Use edit_md_file for updating existing documentation files
+    - Prefer write_md_file for major documentation updates to avoid matching issues
+    - Always target FEATUREREADME.md as the main documentation file, not README.md
 
-    ## Example Workflow:
-    1. Plan: {{ "step": "plan", "content": "Need to analyze the project structure and current functionality" }}
-    2. Action: {{ "step": "action", "function": "check_git_status", "input": "" }}
-    3. Observe: {{ "step": "observe", "content": "Analyzing project files with check_git_status function and functionality..." }}
-    4. Action: {{ "step": "action", "function": "read_md_file", "input": "README.md" }}
-    6. Action: {{ "step": "action", "function": "edit_md_file", "input": "README.md|current_content|comprehensive_updated_content" }}
-    7. Output: {{ "step": "output", "content": "Comprehensive README.md documentation generated successfully" }}
+    ## Example Workflow for Feature Documentation:
+    1. Plan: {{ "step": "plan", "content": "Need to analyze all source files to understand features and capabilities" }}
+    2. Action: {{ "step": "action", "function": "list_project_files", "input": "" }}
+    3. Observe: {{ "step": "observe", "content": "Analyzing project structure and identifying key feature files..." }}
+    4. Action: {{ "step": "action", "function": "read_file", "input": "app.py" }}
+    5. Action: {{ "step": "action", "function": "read_file", "input": "routes/base.py" }}
+    6. Observe: {{ "step": "observe", "content": "Understanding core features and API endpoints..." }}
+    7. Action: {{ "step": "action", "function": "read_md_file", "input": "FEATUREREADME.md" }}
+    8. Action: {{ "step": "action", "function": "write_md_file", "input": "FEATUREREADME.md|comprehensive_feature_documentation" }}
+    9. Output: {{ "step": "output", "content": "Feature-focused FEATUREREADME.md documentation generated successfully" }}
 
-    Always be thorough, accurate, and focus on creating documentation that provides complete understanding of the project rather than just summarizing recent changes.
+    IMPORTANT: Only modify FEATUREREADME.md, never README.md. All documentation updates should target FEATUREREADME.md.
+
+    Focus on creating detailed, practical documentation that makes each feature clear and implementable rather than providing vague overviews.
     """
     messages = [
             { "role": "system", "content": SYSTEM_PROMPT },
@@ -295,3 +321,5 @@ def generate_api_overview():
 
     return {"content": parsed_response.get("content")}
 
+if __name__ == "__main__":
+    generate_feature_docs()
