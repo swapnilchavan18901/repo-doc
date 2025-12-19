@@ -21,9 +21,6 @@ def subtract (a: int, b: int):
 def multiply (a: int, b: int):
     return a * b
 
-def divide (a: int, b: int):
-    return a / b
-
 def check_git_status(input: str = ""):
         status = subprocess.check_output(["git", "status"], text=True)
         diff = subprocess.check_output(["git", "diff"], text=True)

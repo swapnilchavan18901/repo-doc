@@ -94,7 +94,7 @@ You can use the following internal tools programmatically (direct calls may requ
 - `write_md_file(input_str: str)` – Creates/overwrites a markdown file; input is `filename.md|content`
 - `edit_md_file(input_str: str)` – Edits markdown file in place; input is `filename.md|old_content|new_content`
 - `list_md_files(data: str = "")` – Lists all markdown files in the project directory
-- `add(a, b)`, `subtract(a, b)`, `multiply(a, b)`, `divide(a, b)` – Arithmetic helpers, primarily for demonstration/agent reasoning purposes
+- `add(a, b)`, `subtract(a, b)`, `multiply(a, b)` – Arithmetic helpers, primarily for demonstration/agent reasoning purposes
 
 ## 🗂️ Project Structure
 
