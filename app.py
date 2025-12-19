@@ -11,6 +11,13 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI(title="AI Living Documentation Engine")
 
+
+def add (a: int, b: int):
+    return a + b
+
+def subtract (a: int, b: int):
+    return a - b
+
 def check_git_status(input: str = ""):
         status = subprocess.check_output(["git", "status"], text=True)
         diff = subprocess.check_output(["git", "diff"], text=True)
@@ -126,31 +133,16 @@ available_tools = {
     "read_md_file": read_md_file,
     "write_md_file": write_md_file,
     "edit_md_file": edit_md_file,
-    "list_md_files": list_md_files
+    "list_md_files": list_md_files,
+    "add": add
 }
 @app.get("/generate_api_overview")
 def generate_api_overview():
-    with open("api_overview.md", "r") as file:
-        api_overview_content = file.read()
+    with open("README.md", "r") as file:
+        readme_content = file.read()
     SYSTEM_PROMPT = f"""
-    You are an AI Documentation Agent specialized in analyzing Git changes and generating comprehensive documentation.
-
-    ## Your Core Responsibilities:
-    1. Analyze Git repository changes using status and diff information
-    2. Generate clear, structured documentation that explains what changed and why
-    3. Focus on code changes, new features, bug fixes, and architectural modifications
-    4. Create documentation that helps developers understand the impact of changes
-    5. Read and analyze all .md files in the current directory to understand existing documentation
-    6. Write new .md files or edit existing ones to maintain comprehensive project documentation
-
-    ## Available Tools:
-    - check_git_status(): Returns git status and git diff output to analyze repository changes
-    - run_command(cmd: str): Runs a shell command on terminal and returns the output with stdout, stderr, and success status
-    - read_md_file(filename: str): Reads content from a markdown file (adds .md extension if not provided)
-    - write_md_file(input: str): Creates or overwrites a markdown file. Format: 'filename.md|content'
-    - edit_md_file(input: str): Replaces specific content in a markdown file. Format: 'filename.md|old_content|new_content'
-    - list_md_files(): Lists all markdown files in the current directory
- 
+    You are an AI Documentation Agent specialized in generating comprehensive documentation for software projects.
+    The README.md file is the main documentation file for the project. You use Git status and diff information to understand what the project does and what needs to be documented.
 
     ## Workflow Process:
     You must follow a strict step-by-step workflow using JSON responses:
@@ -159,7 +151,7 @@ def generate_api_overview():
     1. **plan**: Analyze what information you need and plan your approach
     2. **action**: Call a tool to gather information
     3. **observe**: Process tool results and plan next steps
-    4. **write**: Write documentation to .md files using write_md_file tool
+    4. **write**: Write comprehensive documentation to .md files using write_md_file tool
     5. **output**: Provide final summary (after files are written)
 
     ### JSON Response Format:
@@ -172,10 +164,12 @@ def generate_api_overview():
 
     ## Documentation Output Requirements:
     When generating documentation, you MUST:
-    1. Edit the existing README.md file using the edit_md_file tool
-    2. Update the README.md with current project information, features, and documentation
-    3. Include all sections: Summary, Files Changed, Key Changes, Impact, Breaking Changes
-    4. Always maintain the README.md file structure and improve it with new information
+    1. Create comprehensive, complete documentation that fully describes the project
+    2. Use Git status and diff to understand the current state and functionality of the project
+    3. Update the README.md file with complete project information, features, API endpoints, usage examples, and technical details
+    4. Maintain a professional, well-structured README.md that serves as the single source of truth for the project
+    5. Include all necessary sections for a complete project README (features, installation, usage, API docs, etc.)
+    6. Focus on creating documentation that helps developers understand and use the project effectively
 
     ## File Editing Instructions:
     Use the edit_md_file tool to update the README.md file:
@@ -186,14 +180,15 @@ def generate_api_overview():
     - Always read the current README.md content first to understand what needs to be updated
 
     ## Example Workflow:
-    1. Plan: {{ "step": "plan", "content": "Need to check git status and diff to understand recent changes" }}
+    1. Plan: {{ "step": "plan", "content": "Need to analyze the project structure and current functionality" }}
     2. Action: {{ "step": "action", "function": "check_git_status", "input": "" }}
-    3. Observe: {{ "step": "observe", "content": "Analyzing the git diff output..." }}
+    3. Observe: {{ "step": "observe", "content": "Analyzing project files and functionality..." }}
     4. Action: {{ "step": "action", "function": "read_md_file", "input": "README.md" }}
-    5. Action: {{ "step": "action", "function": "edit_md_file", "input": "README.md|old_section|updated_section_with_changes" }}
-    6. Output: {{ "step": "output", "content": "README.md updated with latest changes successfully" }}
+    5. Action: {{ "step": "action", "function": "read_md_file", "input": "app.py" }}
+    6. Action: {{ "step": "action", "function": "edit_md_file", "input": "README.md|current_content|comprehensive_updated_content" }}
+    7. Output: {{ "step": "output", "content": "Comprehensive README.md documentation generated successfully" }}
 
-    Always be thorough, accurate, and focus on generating documentation that saves developers time by summarizing complex Git changes into digestible information.
+    Always be thorough, accurate, and focus on creating documentation that provides complete understanding of the project rather than just summarizing recent changes.
     """
     messages = [
             { "role": "system", "content": SYSTEM_PROMPT },

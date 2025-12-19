@@ -122,7 +122,8 @@ The AI agent follows a structured workflow:
 - `write_md_file()` - Creates/overwrites markdown files
 - `edit_md_file()` - Edits existing markdown files
 - `list_md_files()` - Lists all markdown files
-
+ - `add(a, b)` - Performs addition of two integers
+- `subtract(a, b)` - Performs subtraction of two integers
 ## 📝 Documentation Output
 
 Generated documentation includes:
