@@ -1,11 +1,81 @@
 import json
 import os
 import subprocess
+import re
 from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+DEFAULT_MAX_ITERATIONS = 50
+
+ALLOWED_COMMANDS = [
+    # Git commands
+    r'^git\s+(status|diff|log|show|branch|remote|config\s+--get)',
+    # File/directory operations (read-only)
+    r'^ls(\s|$)',
+    r'^cat\s+',
+    r'^head\s+',
+    r'^tail\s+',
+    r'^find\s+',
+    r'^grep\s+',
+    r'^tree(\s|$)',
+    r'^pwd(\s|$)',
+    r'^which\s+',
+    # Python operations
+    r'^python\s+-m\s+',
+    r'^pip\s+(list|show|freeze)(\s|$)',
+    # Node/npm operations (read-only)
+    r'^npm\s+(list|view|info)(\s|$)',
+    r'^node\s+--version(\s|$)',
+    # System info (read-only)
+    r'^echo\s+',
+    r'^whoami(\s|$)',
+    r'^date(\s|$)',
+    r'^uname(\s|$)',
+]
+
+
+BLOCKED_PATTERNS = [
+    r'rm\s+-rf',  # Recursive force delete
+    r'rm\s+.*\*',  # Wildcard delete
+    r'dd\s+',  # Disk operations
+    r'mkfs',  # Format filesystem
+    r'>\s*/dev/',  # Write to device files
+    r'sudo\s+',  # Elevated privileges
+    r'su\s+',  # Switch user
+    r'chmod\s+777',  # Insecure permissions
+    r'curl.*\|\s*bash',  # Pipe to shell
+    r'wget.*\|\s*sh',  # Pipe to shell
+    r'eval\s+',  # Code evaluation
+    r'exec\s+',  # Execute
+    r':\(\)\{.*\}',  # Fork bomb
+    r'mv\s+/',  # Move system directories
+    r'cp\s+.*>\s*/',  # Overwrite system files
+]
+
+def is_command_safe(cmd: str) -> tuple[bool, str]:
+    """
+    Validate if a command is safe to execute.
+    Returns (is_safe, reason)
+    """
+    cmd = cmd.strip()
+    
+    # Check for empty command
+    if not cmd:
+        return False, "Empty command"
+    
+    # Check against blocked patterns first
+    for pattern in BLOCKED_PATTERNS:
+        if re.search(pattern, cmd, re.IGNORECASE):
+            return False, f"Blocked: Command matches dangerous pattern '{pattern}'"
+    
+    # Check if command matches any allowed pattern
+    for pattern in ALLOWED_COMMANDS:
+        if re.match(pattern, cmd):
+            return True, "Command allowed"
+    
+    return False, f"Command not in whitelist. For security, only specific commands are allowed."
 def check_git_status(input: str = ""):
         status = subprocess.check_output(["git", "status"], text=True)
         diff = subprocess.check_output(["git", "diff"], text=True)
@@ -15,7 +85,18 @@ def check_git_status(input: str = ""):
         }
 
 def run_command(cmd: str):
-    """Run a shell command and return both output and exit code"""
+    """Run a shell command with security validation and return both output and exit code"""
+    # Security check before execution
+    is_safe, reason = is_command_safe(cmd)
+    
+    if not is_safe:
+        return {
+            "success": False,
+            "error": f"SECURITY BLOCK: {reason}",
+            "command": cmd,
+            "blocked": True
+        }
+    
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
         return {
@@ -262,7 +343,15 @@ available_tools = {
     "edit_md_file": edit_md_file,
     "list_md_files": list_md_files,
 }
-def generate_feature_docs():
+def generate_feature_docs(max_iterations: int = DEFAULT_MAX_ITERATIONS):
+    """
+    Generate feature documentation using AI agent.
+    
+    Args:
+        max_iterations (int): Maximum number of agent loop iterations. 
+                            Default is set by DEFAULT_MAX_ITERATIONS constant.
+                            Prevents infinite loops and runaway costs.
+    """
     with open("FEATUREREADME.md", "r") as file:
         readme_content = file.read()
     SYSTEM_PROMPT = f"""
@@ -397,7 +486,14 @@ def generate_feature_docs():
     messages = [
             { "role": "system", "content": SYSTEM_PROMPT },
     ]
-    while True:
+    
+    iteration_count = 0
+    while iteration_count < max_iterations:
+        iteration_count += 1
+        print(f"\n{'='*60}")
+        print(f"🔄 Iteration {iteration_count}/{max_iterations}")
+        print(f"{'='*60}\n")
+        
         response = client.chat.completions.create(
             model="gpt-4.1",
             response_format={"type": "json_object"},
@@ -455,8 +551,22 @@ def generate_feature_docs():
         else:
             print(f"❌: Unknown step: {step}")
             break
+    
+    # Check if loop ended due to max iterations
+    if iteration_count >= max_iterations:
+        print(f"\n⚠️  WARNING: Reached maximum iteration limit ({max_iterations})")
+        print(f"    The agent loop was terminated to prevent runaway execution.")
+        print(f"    If you need more iterations, increase max_iterations parameter.")
+        return {
+            "content": "Max iterations reached",
+            "warning": f"Agent stopped after {max_iterations} iterations",
+            "iterations": iteration_count
+        }
 
-    return {"content": parsed_response.get("content")}
+    return {
+        "content": parsed_response.get("content"),
+        "iterations": iteration_count
+    }
 
 if __name__ == "__main__":
     generate_feature_docs()

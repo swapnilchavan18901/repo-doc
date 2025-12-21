@@ -32,13 +32,19 @@ Key technologies: **FastAPI**, **aiohttp**, **requests**, **Pydantic**, **OpenAI
 
 ### 4. Markdown File Management & Developer Utilities
 
-- Programmatic utilities for:
-  - Reading, writing, and editing markdown documentation files.
-  - Executing shell commands with output/error reporting.
-  - Checking git status and git diff.
-- CLI and web integration with these tools for streamlined developer UX.
-
+- Comprehensive utilities for markdown/documentation workflows:
+  - **Reading, writing, and editing markdown files programmatically**
+  - **Ultra-efficient line-based editing** – Only the specified line range is changed (`edit_md_file('filename.md|start_line|end_line|new_content')`), ideal for precise, large-document updates.
+  - Classic content-based editing (`edit_md_file('filename.md|old_content|new_content')`) as a fallback, but line-based editing is now preferred for all updates.
+  - Automatic line number retrieval using `read_md_file`, which returns content with line numbers for easy targeting.
+- **Secure Shell Command Execution & Validation:**
+  - The `run_command(cmd: str)` utility executes shell commands, but only allows a strict set of read-only or diagnostic commands (such as `ls`, `cat`, `head`, `git status`, etc.) which match a project-managed **whitelist** of regular expressions for safety.
 ### 5. Dynamic API & Documentation Generation
+
+- Automated documentation workflow via code (`generate_feature_docs.py`).
+- Dynamic OpenAI-based generation of project documentation with strict agent loop safety.
+- **AI Agent Max Iterations (runaway guard):** All AI-driven doc generation runs are protected by a `max_iterations` parameter (default: 50), ensuring the main agent loop cannot execute unchecked. If the agent hits this limit, a warning is returned and the loop stops automatically—make sure to increase max_iterations only for large doc updates.
+- To customize the loop limit, pass `generate_feature_docs(max_iterations=NN)` when invoking from Python. This helps protect against runaway API costs and accidental infinite loops.
 
 - Automated documentation workflow via code (`generate_feature_docs.py`).
 - Dynamic OpenAI-based generation of project documentation.
@@ -133,9 +139,14 @@ Hello, World!
 - **multiply(a: int, b: int):** Return product
 - **run_command(cmd: str):** Execute shell command and get output/return code
 - **check_git_status():** Get `git status` and `git diff`
-- **read_md_file(filename: str):** Get content of a markdown file
-- **write_md_file('filename.md|content'):** Write/overwrite markdown file
-- **edit_md_file('filename.md|old_content|new_content'):** Replace content in markdown file
+- **read_md_file(filename: str):** Returns content of a markdown file with line numbers (`LINE | CONTENT`), ideal for identifying ranges for editing.
+- **write_md_file('filename.md|content'):** Write/overwrite markdown file in one call.
+- **edit_md_file (preferred line-based editing):**
+    - `'filename.md|start_line|end_line|new_content'`: Replace specific line range (1-based, inclusive)
+    - Example: `edit_md_file('FEATUREREADME.md|90|110|New feature content here...')` (replaces lines 90-110)
+- **edit_md_file (legacy content-based editing):**
+    - `'filename.md|old_content|new_content'`: Replaces first occurrence of old_content in the file.
+    - Less efficient; only use if precise line numbers are unknown.
 
 ---
 
@@ -173,7 +184,13 @@ curl 'http://localhost:8000/api/example/github'
 # Response: { "user_name": "octocat", "followers": 3000, "repo_count": 7 }
 ```
 
-**Write markdown file via utility:**
+**Efficient line-based editing (preferred):**
+
+```python
+from app import edit_md_file
+# Replace lines 5-7 in FEATUREREADME.md with new content
+edit_md_file('FEATUREREADME.md|5|7|# Updated title\nNew overview here...')
+```
 
 ```python
 from app import write_md_file
