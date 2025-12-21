@@ -14,6 +14,7 @@ Key technologies: **FastAPI**, **aiohttp**, **requests**, **Pydantic**, **OpenAI
 
 - Modular routing using FastAPI routers, providing clean separation between demo, base, and example APIs.
 - Support for both sync and async endpoint handlers for maximum flexibility and performance.
+- **NEW:** Dedicated route for `/dinkachika/` providing a basic "Hello, World!" example for health checks or minimal responses.
 
 ### 2. Hello World Endpoint
 
@@ -75,13 +76,24 @@ uvicorn app:app --reload
 
 - Access base API at: http://localhost:8000/
 - Demo API: http://localhost:8000/api/example
+- Dinkachika endpoint: http://localhost:8000/dinkachika/
 - API docs (Swagger UI): http://localhost:8000/docs
 
 ---
 
 ## API Reference
 
-### 1. Demo and Example Routes
+### 1. Dinkachika Route
+
+#### `GET /dinkachika/`
+- **Description:** Returns a plain text response 'Hello, World!'. Useful for health checks, basic testing, or as a minimal demo endpoint.
+- **Response:**
+
+```
+Hello, World!
+```
+
+### 2. Demo and Example Routes
 
 #### `GET /api/example`
 
@@ -114,7 +126,7 @@ uvicorn app:app --reload
 - **Description:** Fetch details of authorized GitHub user asynchronously (uses `aiohttp`).
 - **Response:** _Same as above._
 
-### 2. Internal Utilities (available as Python functions, not HTTP endpoints)
+### 3. Internal Utilities (available as Python functions, not HTTP endpoints)
 
 - **add(a: int, b: int):** Return sum
 - **subtract(a: int, b: int):** Return difference
@@ -139,6 +151,13 @@ uvicorn app:app --reload
 ---
 
 ## Examples
+
+**Calling the Dinkachika endpoint:**
+
+```sh
+curl http://localhost:8000/dinkachika/
+# Response: Hello, World!
+```
 
 **Fetching a personalized hello:**
 

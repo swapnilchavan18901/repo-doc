@@ -3,7 +3,7 @@ import os
 import subprocess
 from openai import OpenAI
 from dotenv import load_dotenv
-from routes import base, examples
+from routes import base, examples, dinkachika
 from fastapi import APIRouter, FastAPI
 
 load_dotenv()
@@ -17,6 +17,7 @@ def get_app() -> FastAPI:
 
     # Add base route at localhost:8000
     app.include_router(base.router)
+    app.include_router(dinkachika.router)
 
     # Add additional routes under localhost:8000/api
     app.include_router(get_router(), prefix="/api")

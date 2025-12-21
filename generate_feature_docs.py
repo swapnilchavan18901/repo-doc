@@ -143,22 +143,6 @@ def read_file(filename: str):
     except Exception as e:
         return {"success": False, "error": str(e), "filename": filename}
 
-def list_project_files(data: str = ""):
-    """List all files in the project directory structure"""
-    try:
-        all_files = []
-        for root, dirs, files in os.walk('.'):
-            # Skip certain directories
-            dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'venv', 'node_modules', '.next']]
-            for file in files:
-                # Skip certain file types
-                if not file.startswith('.') and not file.endswith(('.pyc', '.log')):
-                    filepath = os.path.join(root, file)
-                    all_files.append(filepath)
-
-        return {"success": True, "files": sorted(all_files), "count": len(all_files)}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
 available_tools = {
     "check_git_status": check_git_status,
@@ -168,7 +152,6 @@ available_tools = {
     "write_md_file": write_md_file,
     "edit_md_file": edit_md_file,
     "list_md_files": list_md_files,
-    "list_project_files": list_project_files,
 }
 def generate_feature_docs():
     with open("FEATUREREADME.md", "r") as file:
@@ -183,14 +166,13 @@ def generate_feature_docs():
 
     ### Step Types:
     1. **plan**: Analyze what information you need and plan your approach to feature documentation
-    2. **action**: Call a tool to gather information about project features and functionality
+    2. **action**: Call a tool to gather information OR write documentation to files
     3. **observe**: Process tool results and analyze specific features and capabilities
-    4. **write**: Write comprehensive feature documentation to .md files
-    5. **output**: Provide final summary (after documentation is written)
+    4. **output**: Provide final summary (after documentation is written)
 
     ### JSON Response Format:
     {{
-        "step": "plan|action|observe|output",
+        "step": "plan|action|observe|write|output",
         "content": "Your analysis or plan description",
         "function": "tool_name",  // only for action steps
         "input": "tool_input"      // only for action steps
@@ -228,32 +210,42 @@ def generate_feature_docs():
     - **Contributing**: Development setup and contribution guidelines
 
     ## File Reading Strategy:
-    - Start by listing all project files to understand the structure
-    - Read key source files (app.py, main modules, configuration files)
-    - Analyze route definitions, service implementations, and model structures
-    - Read existing documentation to understand current feature coverage
-    - Focus on understanding the complete feature set before writing documentation
+    - Start by checking git status to identify which files have been changed
+    - Read the changed files to understand what features or functionality were modified
+    - Analyze route definitions, service implementations, and model structures in changed files
+    - Read existing FEATUREREADME.md to understand current feature coverage
+    - Focus documentation updates on the specific features that were changed
 
     ## File Editing Instructions:
-    - Use read_file() to examine any file in the project structure
-    - Use list_project_files() to understand the complete project layout
+    - Use check_git_status() first to identify changed files
+    - Use read_file() to examine changed files and understand feature modifications
     - Use write_md_file for creating/updating the FEATUREREADME.md file
     - Use edit_md_file for updating existing documentation files
     - Prefer write_md_file for major documentation updates to avoid matching issues
     - Always target FEATUREREADME.md as the main documentation file, not README.md
+    - IMPORTANT: When writing documentation, you MUST call write_md_file with the COMPLETE documentation content, not just a placeholder
+    - Generate comprehensive, detailed documentation content that covers all features found in the analysis
+    - Do NOT skip to "output" step until you have actually written the documentation to the file
 
     ## Example Workflow for Feature Documentation:
-    1. Plan: {{ "step": "plan", "content": "Need to analyze all source files to understand features and capabilities" }}
-    2. Action: {{ "step": "action", "function": "list_project_files", "input": "" }}
-    3. Observe: {{ "step": "observe", "content": "Analyzing project structure and identifying key feature files..." }}
+    1. Plan: {{ "step": "plan", "content": "Need to analyze changed files to understand what features were modified" }}
+    2. Action: {{ "step": "action", "function": "check_git_status", "input": "" }}
+    3. Observe: {{ "step": "observe", "content": "Analyzing git status to identify changed files and their modifications..." }}
     4. Action: {{ "step": "action", "function": "read_file", "input": "app.py" }}
     5. Action: {{ "step": "action", "function": "read_file", "input": "routes/base.py" }}
-    6. Observe: {{ "step": "observe", "content": "Understanding core features and API endpoints..." }}
+    6. Observe: {{ "step": "observe", "content": "Understanding modified features and API endpoints..." }}
     7. Action: {{ "step": "action", "function": "read_md_file", "input": "FEATUREREADME.md" }}
-    8. Action: {{ "step": "action", "function": "write_md_file", "input": "FEATUREREADME.md|comprehensive_feature_documentation" }}
-    9. Output: {{ "step": "output", "content": "Feature-focused FEATUREREADME.md documentation generated successfully" }}
+    8. Write: {{ "step": "write", "content": "FEATUREREADME.md will be updated to document the new /dinkachika/ API route..." }}
+    9. Action: {{ "step": "action", "function": "write_md_file", "input": "FEATUREREADME.md|comprehensive_feature_documentation_content_here" }}
+    10. Output: {{ "step": "output", "content": "Feature-focused FEATUREREADME.md documentation generated successfully" }}
 
     IMPORTANT: Only modify FEATUREREADME.md, never README.md. All documentation updates should target FEATUREREADME.md.
+
+    CRITICAL WORKFLOW REMINDER:
+    - You MUST call write_md_file with actual documentation content before reaching the "output" step
+    - Do NOT provide an "output" response until you have successfully written the documentation to FEATUREREADME.md
+    - The workflow should end with actual file changes, not just analysis and planning
+    - Generate comprehensive documentation that covers all analyzed features with practical examples
 
     Focus on creating detailed, practical documentation that makes each feature clear and implementable rather than providing vague overviews.
     """
@@ -268,7 +260,7 @@ def generate_feature_docs():
         )
 
         messages.append({ "role": "assistant", "content": response.choices[0].message.content })
-
+        print(response.choices[0].message.content)
         try:
             parsed_response = json.loads(response.choices[0].message.content)
         except json.JSONDecodeError:
