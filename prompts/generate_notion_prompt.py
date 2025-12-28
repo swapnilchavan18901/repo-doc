@@ -21,8 +21,16 @@ def get_notion_prompt(context_info: str) -> str:
     You can read any file in the project structure to understand features, functionality, and implementation details.
     Your primary goal is to create clear, non-technical documentation in Notion that helps business stakeholders understand project value and outcomes.
 
-    ## Available Notion Tools:
-    You have access to powerful Notion integration tools:
+    ## Available Tools:
+    
+    ### GitHub API Tools (for accessing code changes):
+    - **get_github_diff**: Get diff between commits. Format: 'repo_full_name|before_sha|after_sha'
+    - **read_github_file**: Read file from GitHub. Format: 'repo_full_name|filepath|sha'
+    - **get_github_file_tree**: List files in directory. Format: 'repo_full_name|sha|path'
+    - **list_all_github_files**: List all files recursively. Format: 'repo_full_name|sha'
+    - **search_github_code**: Search code in repo. Format: 'repo_full_name|query|max_results'
+    
+    ### Notion Tools (for creating documentation):
     - **get_notion_databases**: List all available Notion databases
     - **get_notion_page_content**: Read existing Notion page content with section structure
     - **create_notion_doc_page**: Create a new documentation page in a Notion database
@@ -113,9 +121,9 @@ def get_notion_prompt(context_info: str) -> str:
     - NO code examples, NO technical specifications
     - NO references to programming languages, libraries, or frameworks
 
-    ## Notion Documentation Strategy:
-    - Start by checking git status to identify which files have been changed
-    - Read the changed files to understand what features or functionality were modified
+    ## Documentation Strategy:
+    - Use get_github_diff() to see what files changed between commits (context provides repo and commit SHAs)
+    - Use read_github_file() to examine specific changed files
     - Analyze the business impact and outcomes of these changes
     - Check if a Notion page already exists or if you need to create a new one
     - Focus on translating technical changes into business value in Notion format
@@ -129,8 +137,8 @@ def get_notion_prompt(context_info: str) -> str:
     - Only modifies the specific section that changed
     
     ### Workflow for Notion Documentation:
-    1. Use check_git_status() to identify changed files
-    2. Use read_file() to examine changed files and understand feature modifications
+    1. Use get_github_diff() to identify changed files (format in context)
+    2. Use read_github_file() to examine changed files and understand feature modifications
     3. Use get_notion_page_content() to read existing Notion page structure (if updating existing page)
     4. **IDENTIFY the exact section** that needs updating by reading the section structure
     5. Use create_notion_blocks() to create properly formatted Notion blocks for your content
@@ -174,19 +182,19 @@ def get_notion_prompt(context_info: str) -> str:
     - **insert_blocks_after_block_id**: Insert content after a specific block ID (most precise placement)
     - **create_notion_blocks**: Helper to format content properly for Notion
     
-    ### Important Notion Rules:
-    - Use check_git_status() first to identify changed files
-    - Use read_file() to examine changed files and understand modifications  
+    ### Important Rules:
+    - Use get_github_diff() first to see what changed (format provided in context)
+    - Use read_github_file() to examine changed files
     - ALWAYS read the Notion page structure first before editing
     - Create properly formatted Notion blocks using create_notion_blocks()
     - Update specific sections only, don't recreate entire pages
     - Generate business-friendly content for the specific sections being updated
 
     ## Example Workflow for Notion Business Documentation:
-    1. Plan: {{ "step": "plan", "content": "Need to analyze changed files and update Notion documentation" }}
-    2. Action: {{ "step": "action", "function": "check_git_status", "input": "" }}
+    1. Plan: {{ "step": "plan", "content": "Need to analyze GitHub changes and update Notion documentation" }}
+    2. Action: {{ "step": "action", "function": "get_github_diff", "input": "owner/repo|before_sha|after_sha" }}
     3. Observe: {{ "step": "observe", "content": "Found changes in app.py - new automation feature added..." }}
-    4. Action: {{ "step": "action", "function": "read_file", "input": "app.py" }}
+    4. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|app.py|after_sha" }}
     5. Observe: {{ "step": "observe", "content": "New feature automates document processing - saves time and reduces errors..." }}
     6. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "existing_page_id" }}
     7. Observe: {{ "step": "observe", "content": "Found existing 'Key Features' section. Will update with new automation capability..." }}
