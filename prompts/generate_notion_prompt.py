@@ -157,10 +157,13 @@ def get_notion_prompt(context_info: str) -> str:
     1. Use list_all_github_files() to see ENTIRE codebase structure
     2. Read MULTIPLE key files (app.py, main services, config, README)
     3. Analyze ALL features, capabilities, and integrations
-    4. **NOW CREATE ALL NOTION BLOCKS** - For entire documentation:
-       a. Call create_notion_blocks() once per heading/paragraph/bullet
-       b. Collect ALL block JSON results into ONE large array
-       c. Call append_notion_blocks() ONCE with the complete array
+    4. **NOW CREATE NOTION CONTENT SECTION BY SECTION**:
+       - For EACH section (e.g., "What This Project Does"):
+         a. Call create_notion_blocks() for heading → get response with "block" field
+         b. Call create_notion_blocks() for each paragraph/bullet → get responses
+         c. Extract the "block" field from EACH response
+         d. Call append_notion_blocks() with just that section's blocks [block1, block2, block3]
+       - Repeat for all 6 sections
     5. Create COMPLETE documentation with ALL sections filled:
        - What This Project Does (heading + 2-3 paragraphs)
        - Key Features (heading + bullet list with 5-10 features)
@@ -170,18 +173,19 @@ def get_notion_prompt(context_info: str) -> str:
        - Current Status (heading + 3-4 bullet points)
     
     🚨 CRITICAL FOR EMPTY PAGES 🚨
-    - Use append_notion_blocks() to ADD all content at once
+    - Use append_notion_blocks() to ADD content section by section
     - DO NOT use update_notion_section() - headings don't exist yet!
-    - Build complete blocks array then append in ONE call
+    - Process ONE SECTION at a time to avoid JSON errors
     
-    🚨 HOW TO COLLECT BLOCKS 🚨
-    1. Each create_notion_blocks() returns: {{"success": True, "block": {{...actual block JSON...}}}}
-    2. YOU MUST extract the "block" field from EACH response
-    3. Collect ALL extracted blocks into a JSON array: [block1, block2, block3, ...]
-    4. Pass the ACTUAL JSON array to append_notion_blocks, NOT the string "[all_blocks_json_array]"
+    🚨 HOW TO HANDLE RESPONSES 🚨
+    1. create_notion_blocks('h2|Title') returns: {{"success": True, "block": {{"object":"block",...}}}}
+    2. From the response, find the "block" field - that's the ACTUAL block object
+    3. DO NOT manually type JSON! Use the exact "block" object from the response
+    4. Collect blocks for one section: [response1["block"], response2["block"], response3["block"]]
+    5. Pass to append_notion_blocks as valid JSON array
     
     ⚠️ AFTER analyzing code, DO NOT call generate_notion_docs or any non-existent tools!
-    ⚠️ For EMPTY pages: create_notion_blocks (many times) → extract "block" from each response → append_notion_blocks (once with actual array)
+    ⚠️ For EMPTY pages: Do ONE SECTION at a time → create blocks → extract → append → move to next section
     
     **Workflow B: UPDATING EXISTING DOCUMENTATION (Has Real Content)**
     TRIGGER: Page already has detailed feature descriptions and content
@@ -291,22 +295,24 @@ def get_notion_prompt(context_info: str) -> str:
     11. Observe: {{ "step": "observe", "content": "FastAPI webhook that receives GitHub events, triggers AI agent to generate docs..." }}
     12. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
     13. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting. Now have full picture of system capabilities." }}
-    14. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building ALL Notion blocks now..." }}
+    14. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building section 1 now..." }}
     15. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|What This Project Does" }}
-    16. Observe: {{ "step": "observe", "content": "Response: {{'success': True, 'block': {{'object':'block','type':'heading_2',...}}}}. Extracted block1." }}
+    16. Observe: {{ "step": "observe", "content": "Got block object from 'block' field in response" }}
     17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system automatically converts code changes into business-friendly documentation." }}
-    18. Observe: {{ "step": "observe", "content": "Response: {{'success': True, 'block': {{'object':'block','type':'paragraph',...}}}}. Extracted block2." }}
-    19. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors repositories and generates clear explanations of what changed and why it matters." }}
-    20. Observe: {{ "step": "observe", "content": "Response: {{'success': True, 'block': {{'object':'block',...}}}}. Extracted block3." }}
-    21. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
-    22. Observe: {{ "step": "observe", "content": "Extracted block4 (heading)" }}
-    23. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Automated Documentation" }}
-    24. Observe: {{ "step": "observe", "content": "Extracted block5" }}
-    25-35. Continue creating blocks for all features, workflow steps, impact, security, status - extracting each block's JSON
-    36. Write: {{ "step": "write", "content": "Created 40+ blocks. Assembling JSON array: [block1, block2, block3, ..., block40]. Now appending to page..." }}
-    37. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[{{'object':'block','type':'heading_2','heading_2':{{'rich_text':[...]}}}},{{'object':'block','type':'paragraph',...}},...ALL 40 ACTUAL BLOCK OBJECTS...]" }}
-    38. Observe: {{ "step": "observe", "content": "Successfully added all sections to Notion page!" }}
-    39. Output: {{ "step": "output", "content": "Created comprehensive documentation with 6 complete sections: What This Project Does, Key Features (8 items), How It Works (6 steps), Impact & Results, Security & Reliability, Current Status. All content is business-focused and stakeholder-ready." }}
+    18. Observe: {{ "step": "observe", "content": "Got block object from 'block' field" }}
+    19. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors repositories and generates clear explanations." }}
+    20. Observe: {{ "step": "observe", "content": "Got block object from 'block' field. Now have 3 blocks for section 1." }}
+    21. Write: {{ "step": "write", "content": "Appending section 1 with 3 blocks..." }}
+    22. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[block1_json_from_response, block2_json_from_response, block3_json_from_response]" }}
+    23. Observe: {{ "step": "observe", "content": "Section 1 added successfully. Moving to section 2..." }}
+    24. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
+    25. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Automated Documentation" }}
+    26. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Business-Friendly Language" }}
+    27-28. Create more feature bullets
+    29. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[section2_blocks_array]" }}
+    30. Observe: {{ "step": "observe", "content": "Section 2 added. Moving to section 3..." }}
+    31-45. Repeat for remaining 4 sections (How It Works, Impact, Security, Status)
+    46. Output: {{ "step": "output", "content": "Created comprehensive documentation with 6 complete sections. All content is business-focused and stakeholder-ready." }}
     
     ## Example Workflow B: Updating Existing Documentation (Changes Only):
     1. Plan: {{ "step": "plan", "content": "Need to analyze recent changes and update relevant documentation sections" }}
@@ -364,17 +370,24 @@ def get_notion_prompt(context_info: str) -> str:
     - NOT output until Notion is actually updated
     
     🚨 COMMON MISTAKES TO AVOID 🚨
-    ❌ create_notion_blocks('h2|Title\nparagraph|Text\nbullet|Point')
-    ❌ append_notion_blocks('page_id|[all_blocks_json_array]')  ← WRONG! This is a string, not actual JSON!
+    ❌ create_notion_blocks('h2|Title\nparagraph|Text\nbullet|Point')  ← Multiple blocks in one call!
+    ❌ append_notion_blocks('page_id|[all_blocks_json_array]')  ← Placeholder string, not actual JSON!
+    ❌ Manually typing JSON like {{"object":"block",...}}  ← Don't type JSON, use response objects!
+    ❌ JSON with syntax errors: missing commas, extra spaces, mismatched brackets
     
-    ✅ CORRECT Process:
-       1. create_notion_blocks('h2|Title') → Response: {{"success": True, "block": {{"object":"block",...}}}}
-       2. Extract block1 = {{"object":"block","type":"heading_2",...}}
-       3. create_notion_blocks('paragraph|Text') → Extract block2
-       4. create_notion_blocks('bullet|Point') → Extract block3
-       5. Build array: blocks_array = [block1, block2, block3]
-       6. append_notion_blocks('page_id|[{{"object":"block",...}},{{"object":"block",...}},...]')
-          ↑ Pass ACTUAL block JSON objects, not placeholder strings!
+    ✅ CORRECT Process (section-by-section):
+       Section 1:
+       1. create_notion_blocks('h2|Title') → Response has "block" field → save it
+       2. create_notion_blocks('paragraph|Text') → Response has "block" field → save it
+       3. append_notion_blocks('page_id|[response1["block"], response2["block"]]')
+          ↑ Use EXACT block objects from responses, don't manually construct JSON!
+       
+       Section 2:
+       4. create_notion_blocks('h2|Features') → save block
+       5. create_notion_blocks('bullet|Item 1') → save block
+       6. append_notion_blocks('page_id|[blocks_from_step4_and_5]')
+       
+       Continue for all sections...
 
 
     REMEMBER: Your Notion documentation should be understandable by executives, managers, and non-technical stakeholders. Focus on WHAT the system does and WHY it matters, not HOW it's built. Translate all technical concepts into business outcomes and value in properly formatted Notion blocks.
