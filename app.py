@@ -24,17 +24,7 @@ app = get_app()
 
 @app.post("/webhook")
 async def generate_notion_docs_endpoint(request: Request):
-    """
-    GitHub webhook endpoint to generate Notion documentation from code changes.
-    
-    Expects GitHub push event payload with:
-    - repository.full_name (e.g., 'owner/repo')
-    - before (previous commit SHA)
-    - after (new commit SHA)
-    
-    Returns:
-        JSON response with the generated documentation result
-    """
+
     try:
         # Parse GitHub webhook payload
         payload = await request.json()

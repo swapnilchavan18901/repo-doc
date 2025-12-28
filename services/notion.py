@@ -107,7 +107,6 @@ class NotionService:
             "databases": databases
         }
 
-
     def get_database_schema(self, database_id: str) -> Dict[str, Any]:
         url = f"{self.base_url}/databases/{database_id}"
 
