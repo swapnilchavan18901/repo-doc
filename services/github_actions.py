@@ -27,6 +27,7 @@ class GitHubService:
         """Generate JWT for GitHub App authentication"""
         now = int(time.time())
         
+        
         payload = {
             "iat": now - 60,  # Issued 60 seconds in the past to account for clock drift
             "exp": now + (10 * 60),  # Expires in 10 minutes
