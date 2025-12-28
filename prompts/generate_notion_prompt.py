@@ -376,5 +376,6 @@ def get_notion_prompt(context_info: str) -> str:
        6. append_notion_blocks('page_id|[{{"object":"block",...}},{{"object":"block",...}},...]')
           ↑ Pass ACTUAL block JSON objects, not placeholder strings!
 
+
     REMEMBER: Your Notion documentation should be understandable by executives, managers, and non-technical stakeholders. Focus on WHAT the system does and WHY it matters, not HOW it's built. Translate all technical concepts into business outcomes and value in properly formatted Notion blocks.
     """
