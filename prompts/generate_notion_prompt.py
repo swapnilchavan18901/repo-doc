@@ -157,20 +157,25 @@ def get_notion_prompt(context_info: str) -> str:
     1. Use list_all_github_files() to see ENTIRE codebase structure
     2. Read MULTIPLE key files (app.py, main services, config, README)
     3. Analyze ALL features, capabilities, and integrations
-    4. **NOW CREATE NOTION BLOCKS** - For each section below:
-       a. Call create_notion_blocks() once per paragraph/bullet
-       b. Collect the block JSON results
-       c. Call update_notion_section() or append_notion_blocks() with the array
+    4. **NOW CREATE ALL NOTION BLOCKS** - For entire documentation:
+       a. Call create_notion_blocks() once per heading/paragraph/bullet
+       b. Collect ALL block JSON results into ONE large array
+       c. Call append_notion_blocks() ONCE with the complete array
     5. Create COMPLETE documentation with ALL sections filled:
-       - What This Project Does (2-3 paragraphs)
-       - Key Features (bullet list with 5-10 features)
-       - How the System Works (5-7 step workflow)
-       - Impact & Results (bullet points on outcomes)
-       - Security & Reliability (3-4 paragraphs)
-       - Current Status (3-4 bullet points)
+       - What This Project Does (heading + 2-3 paragraphs)
+       - Key Features (heading + bullet list with 5-10 features)
+       - How the System Works (heading + 5-7 step workflow)
+       - Impact & Results (heading + bullet points on outcomes)
+       - Security & Reliability (heading + 3-4 paragraphs)
+       - Current Status (heading + 3-4 bullet points)
+    
+    🚨 CRITICAL FOR EMPTY PAGES 🚨
+    - Use append_notion_blocks() to ADD all content at once
+    - DO NOT use update_notion_section() - headings don't exist yet!
+    - Build complete blocks array then append in ONE call
     
     ⚠️ AFTER analyzing code, DO NOT call generate_notion_docs or any non-existent tools!
-    ⚠️ NEXT STEPS are: create_notion_blocks → collect results → update_notion_section/append_notion_blocks
+    ⚠️ For EMPTY pages: create_notion_blocks (many times) → collect ALL results → append_notion_blocks (once)
     
     **Workflow B: UPDATING EXISTING DOCUMENTATION (Has Real Content)**
     TRIGGER: Page already has detailed feature descriptions and content
@@ -241,13 +246,22 @@ def get_notion_prompt(context_info: str) -> str:
     
     ### When to Use Each Notion Tool:
     - **get_notion_databases**: First step - find available databases
-    - **create_notion_doc_page**: Only for creating completely NEW documentation pages
+    - **create_notion_doc_page**: Creating completely NEW documentation pages
     - **get_notion_page_content**: Read existing page structure before updating
-    - **update_notion_section**: 95% of updates - updating existing sections by replacing content under a heading
-    - **append_notion_blocks**: Adding new sections to end of page
-    - **insert_blocks_after_text**: Insert content after a specific text (useful for adding subsections)
-    - **insert_blocks_after_block_id**: Insert content after a specific block ID (most precise placement)
-    - **create_notion_blocks**: Helper to format content properly for Notion
+    - **create_notion_blocks**: Helper to format individual blocks (call many times to build array)
+    
+    🚨 CRITICAL - Choose correct update method:
+    - **append_notion_blocks**: For EMPTY pages or adding new sections at end
+      → Use when page has 0 blocks or when adding brand new sections
+      → Format: 'page_id|[all_blocks_json_array]'
+    
+    - **update_notion_section**: For EXISTING sections with headings already present
+      → Use when heading exists and you need to replace its content
+      → Format: 'page_id|heading_text|[content_blocks_json]'
+      → Will FAIL if heading doesn't exist!
+    
+    - **insert_blocks_after_text**: Insert content after specific text
+    - **insert_blocks_after_block_id**: Insert content after specific block ID
     
     ### Important Rules:
     - Use get_github_diff() first to see what changed (format provided in context)
@@ -271,17 +285,20 @@ def get_notion_prompt(context_info: str) -> str:
     11. Observe: {{ "step": "observe", "content": "FastAPI webhook that receives GitHub events, triggers AI agent to generate docs..." }}
     12. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
     13. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting. Now have full picture of system capabilities." }}
-    14. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building Notion sections now..." }}
+    14. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building ALL Notion blocks now..." }}
     15. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|What This Project Does" }}
-    16. Observe: {{ "step": "observe", "content": "Created heading block" }}
-    17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system automatically converts code changes into business-friendly documentation that executives and managers can understand." }}
-    18. Observe: {{ "step": "observe", "content": "Created paragraph block" }}
-    19. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors code repositories, analyzes updates, and generates clear explanations of what changed and why it matters to the business." }}
-    20. Observe: {{ "step": "observe", "content": "Created second paragraph. Now updating Notion section with these 3 blocks..." }}
-    21. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[h2_block_json, para1_json, para2_json]" }}
-    22. Observe: {{ "step": "observe", "content": "Added 'What This Project Does' section. Moving to Key Features..." }}
-    23-35. Repeat for other sections (Key Features with bullets, How It Works with numbered steps, Impact & Results, Security, Status)
-    36. Output: {{ "step": "output", "content": "Created comprehensive documentation covering ALL features: webhook automation, AI-powered doc generation, Notion integration, GitHub analysis, business-focused content translation. All 6 sections populated with business-friendly content." }}
+    16. Observe: {{ "step": "observe", "content": "Created heading block for section 1" }}
+    17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system automatically converts code changes into business-friendly documentation." }}
+    18. Observe: {{ "step": "observe", "content": "Created paragraph 1" }}
+    19. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors repositories and generates clear explanations of what changed and why it matters." }}
+    20. Observe: {{ "step": "observe", "content": "Created paragraph 2" }}
+    21. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
+    22. Observe: {{ "step": "observe", "content": "Created heading for section 2" }}
+    23-30. Continue creating blocks for all features, workflow steps, impact points, security, status
+    31. Write: {{ "step": "write", "content": "Created all 40+ blocks. Now appending entire documentation to page in one call..." }}
+    32. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[all_blocks_json_array]" }}
+    33. Observe: {{ "step": "observe", "content": "Successfully added all sections to Notion page!" }}
+    34. Output: {{ "step": "output", "content": "Created comprehensive documentation with 6 complete sections: What This Project Does, Key Features (8 items), How It Works (6 steps), Impact & Results, Security & Reliability, Current Status. All content is business-focused and stakeholder-ready." }}
     
     ## Example Workflow B: Updating Existing Documentation (Changes Only):
     1. Plan: {{ "step": "plan", "content": "Need to analyze recent changes and update relevant documentation sections" }}
