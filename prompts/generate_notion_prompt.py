@@ -192,15 +192,26 @@ def get_notion_prompt(context_info: str) -> str:
     6. Use update_notion_section() to update ONLY that specific section
     7. If multiple sections need updates, call update_notion_section multiple times
     
-    ### Notion Block Creation:
-    Use create_notion_blocks() to create proper Notion formatting:
+    ### Notion Block Creation - CRITICAL USAGE INSTRUCTIONS:
     
-    **Headings:**
+    🚨 **IMPORTANT: create_notion_blocks() creates ONE BLOCK AT A TIME** 🚨
+    
+    **DO NOT pass multiple blocks with newlines in one call!**
+    ❌ WRONG: create_notion_blocks('h2|Title\nparagraph|Text\nbullet|Item')
+    ✅ CORRECT: Call create_notion_blocks() multiple times, once per block
+    
+    **For Multiple Blocks:**
+    Option 1: Call create_notion_blocks() separately for each block, collect results
+    Option 2: Use 'mixed' type with pre-built JSON array
+    
+    **Single Block Formats:**
+    
+    **Headings (one at a time):**
     - "h1|Main Title" - Largest heading (Heading 1)
     - "h2|Section Title" - Medium heading (Heading 2)
     - "h3|Subsection Title" - Small heading (Heading 3)
     
-    **Text & Lists:**
+    **Text & Lists (one at a time):**
     - "paragraph|Your paragraph text" - Regular paragraph
     - "bullet|Bullet point text" - Bulleted list item
     - "numbered|Numbered item text" - Numbered list item
@@ -218,6 +229,9 @@ def get_notion_prompt(context_info: str) -> str:
     - "toggle|Click to expand|[children_json]" - Collapsible section
     - "divider" - Horizontal divider line
     - "toc" or "table_of_contents" - Auto-generated table of contents
+    
+    **Multiple Blocks (advanced):**
+    - "mixed|[json_array]" - Pass pre-built JSON array of multiple blocks
     
     ### When to Use Each Notion Tool:
     - **get_notion_databases**: First step - find available databases
@@ -251,10 +265,15 @@ def get_notion_prompt(context_info: str) -> str:
     11. Observe: {{ "step": "observe", "content": "FastAPI webhook that receives GitHub events, triggers AI agent to generate docs..." }}
     12. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
     13. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting..." }}
-    14-20. Read more files, create comprehensive blocks for ALL sections
-    21. Action: {{ "step": "action", "function": "update_notion_section", "input": "page_id|What This Project Does|[comprehensive_blocks]" }}
-    22-25. Update all other sections with full feature documentation
-    26. Output: {{ "step": "output", "content": "Created comprehensive documentation covering ALL features: webhook automation, AI-powered doc generation, Notion integration, GitHub analysis, business-focused content translation" }}
+    14. Write: {{ "step": "write", "content": "Building blocks for 'What This Project Does' section..." }}
+    15. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system automatically converts code changes into business-friendly documentation that executives and managers can understand." }}
+    16. Observe: {{ "step": "observe", "content": "Created paragraph block. Building more blocks..." }}
+    17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors code repositories, analyzes updates, and generates clear explanations of what changed and why it matters to the business." }}
+    18. Observe: {{ "step": "observe", "content": "Created second paragraph. Now collecting all blocks into array..." }}
+    19. Action: {{ "step": "action", "function": "update_notion_section", "input": "page_id|What This Project Does|[paragraph1_json, paragraph2_json]" }}
+    20. Observe: {{ "step": "observe", "content": "Successfully updated 'What This Project Does' section. Moving to Key Features..." }}
+    21-30. Repeat for other sections (Key Features, How It Works, Impact & Results, etc.)
+    31. Output: {{ "step": "output", "content": "Created comprehensive documentation covering ALL features: webhook automation, AI-powered doc generation, Notion integration, GitHub analysis, business-focused content translation" }}
     
     ## Example Workflow B: Updating Existing Documentation (Changes Only):
     1. Plan: {{ "step": "plan", "content": "Need to analyze recent changes and update relevant documentation sections" }}
@@ -306,8 +325,18 @@ def get_notion_prompt(context_info: str) -> str:
     
     **You MUST:**
     - Use Notion tools to create/update documentation before "output" step
+    - Call create_notion_blocks() ONCE per block (not multiline strings!)
+    - Collect block JSON results into array before calling update_notion_section
     - Use proper Notion block formatting for all content
     - NOT output until Notion is actually updated
+    
+    🚨 COMMON MISTAKE TO AVOID 🚨
+    ❌ create_notion_blocks('h2|Title\nparagraph|Text\nbullet|Point')
+    ✅ Call create_notion_blocks 3 times:
+       1. create_notion_blocks('h2|Title') → get block1
+       2. create_notion_blocks('paragraph|Text') → get block2  
+       3. create_notion_blocks('bullet|Point') → get block3
+       Then: update_notion_section('page_id|Section|[block1, block2, block3]')
 
     REMEMBER: Your Notion documentation should be understandable by executives, managers, and non-technical stakeholders. Focus on WHAT the system does and WHY it matters, not HOW it's built. Translate all technical concepts into business outcomes and value in properly formatted Notion blocks.
     """
