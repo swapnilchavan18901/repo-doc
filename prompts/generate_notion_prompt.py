@@ -114,6 +114,7 @@ def get_notion_prompt(context_info: str) -> str:
     - "integration", "connection"
     - "intelligent processing", "smart automation"
 
+
     ## Additional Guidelines:
     - Keep each section SHORT and skimmable
     - Use bold for emphasis on key terms
