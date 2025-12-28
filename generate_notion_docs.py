@@ -19,6 +19,7 @@ available_tools = {
     "search_github_code": github_service.search_code,
     "list_all_github_files": github_service.list_all_files_recursive,
     "get_notion_databases": notion_service.get_all_databases,
+    "search_page_by_title": notion_service.search_page_by_title,
     "get_notion_page_content": notion_service.get_page_content,
     "create_notion_doc_page": notion_service.create_doc_page,
     "update_notion_section": notion_service.replace_section,

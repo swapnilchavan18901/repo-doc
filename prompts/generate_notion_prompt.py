@@ -32,6 +32,7 @@ def get_notion_prompt(context_info: str) -> str:
     
     ### Notion Tools (for creating documentation):
     - **get_notion_databases**: List all available Notion databases
+    - **search_page_by_title**: Search for existing page by title. Format: 'page_title'
     - **get_notion_page_content**: Read existing Notion page content with section structure
     - **create_notion_doc_page**: Create a new documentation page in a Notion database
     - **update_notion_section**: Update specific sections in existing Notion pages (replaces section content)
@@ -124,12 +125,18 @@ def get_notion_prompt(context_info: str) -> str:
     ## Documentation Strategy:
     
     ### STEP 1: Find or Create Documentation Page
-    1. If NO page_id or database_id provided in context:
-       - Call get_notion_databases() to find available databases
-       - Search for existing page with repo name OR create new page
-       - Use the database_id from CONTEXT to create page if needed
-    2. If page_id provided in context:
-       - Use that page directly
+    
+    🚨 CRITICAL: Always use page titled "Product Features" 🚨
+    
+    1. FIRST: Call search_page_by_title('Product Features') to check if it exists
+    2. If found (response has "found": true):
+       - Use the page_id from response
+       - Call get_notion_page_content(page_id) to read existing content
+       - Use existing content as context when analyzing code changes
+    3. If NOT found (response has "found": false):
+       - Call get_notion_databases() to get database_id
+       - Create new page: create_notion_doc_page('database_id|Product Features')
+       - This will be a new empty page to populate
     
     ### STEP 2: CRITICAL - Determine Workflow Based on Content State
     
@@ -282,37 +289,50 @@ def get_notion_prompt(context_info: str) -> str:
     - Generate business-friendly content for the specific sections being updated
 
     ## Example Workflow A: Creating Comprehensive Documentation (Empty/Placeholder Page):
-    1. Plan: {{ "step": "plan", "content": "Need to find/create page and check if full documentation exists" }}
-    2. Action: {{ "step": "action", "function": "get_notion_databases", "input": "" }}
-    3. Observe: {{ "step": "observe", "content": "Found database. Will search for or create page for this repo." }}
-    4. Action: {{ "step": "action", "function": "create_notion_doc_page", "input": "database_id|Repo Documentation" }}
-    5. Observe: {{ "step": "observe", "content": "Created page. Now checking content..." }}
-    6. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "page_id" }}
-    7. Observe: {{ "step": "observe", "content": "Page has headings 'What This Page Covers', 'Key Outcomes' but ONLY placeholder text like 'Content will be updated'. This is EMPTY. Need FULL COMPREHENSIVE DOCS." }}
-    8. Action: {{ "step": "action", "function": "list_all_github_files", "input": "owner/repo|sha" }}
-    9. Observe: {{ "step": "observe", "content": "Found app.py, services/notion.py, generate_notion_docs.py, prompts/. This is a documentation automation system." }}
-    10. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|app.py|sha" }}
-    11. Observe: {{ "step": "observe", "content": "FastAPI webhook that receives GitHub events, triggers AI agent to generate docs..." }}
-    12. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
-    13. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting. Now have full picture of system capabilities." }}
-    14. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building section 1 now..." }}
-    15. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|What This Project Does" }}
-    16. Observe: {{ "step": "observe", "content": "Got block object from 'block' field in response" }}
-    17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system automatically converts code changes into business-friendly documentation." }}
-    18. Observe: {{ "step": "observe", "content": "Got block object from 'block' field" }}
-    19. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors repositories and generates clear explanations." }}
-    20. Observe: {{ "step": "observe", "content": "Got block object from 'block' field. Now have 3 blocks for section 1." }}
-    21. Write: {{ "step": "write", "content": "Appending section 1 with 3 blocks..." }}
-    22. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[block1_json_from_response, block2_json_from_response, block3_json_from_response]" }}
-    23. Observe: {{ "step": "observe", "content": "Section 1 added successfully. Moving to section 2..." }}
-    24. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
-    25. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Automated Documentation" }}
-    26. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Business-Friendly Language" }}
-    27-28. Create more feature bullets
-    29. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[section2_blocks_array]" }}
-    30. Observe: {{ "step": "observe", "content": "Section 2 added. Moving to section 3..." }}
-    31-45. Repeat for remaining 4 sections (How It Works, Impact, Security, Status)
-    46. Output: {{ "step": "output", "content": "Created comprehensive documentation with 6 complete sections. All content is business-focused and stakeholder-ready." }}
+    1. Plan: {{ "step": "plan", "content": "Need to find 'Product Features' page or create it if doesn't exist" }}
+    2. Action: {{ "step": "action", "function": "search_page_by_title", "input": "Product Features" }}
+    3. Observe: {{ "step": "observe", "content": "Response: {{'found': false}}. Page doesn't exist. Need to create it." }}
+    4. Action: {{ "step": "action", "function": "get_notion_databases", "input": "" }}
+    5. Observe: {{ "step": "observe", "content": "Found database_id: 2d322f89..." }}
+    6. Action: {{ "step": "action", "function": "create_notion_doc_page", "input": "2d322f89...|Product Features" }}
+    7. Observe: {{ "step": "observe", "content": "Created 'Product Features' page with id: abc123. Now checking if empty..." }}
+    8. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "abc123" }}
+    9. Observe: {{ "step": "observe", "content": "Page is empty. Need FULL COMPREHENSIVE DOCS." }}
+    
+    ## Example: When Product Features Page Already Exists:
+    1. Plan: {{ "step": "plan", "content": "Need to find 'Product Features' page" }}
+    2. Action: {{ "step": "action", "function": "search_page_by_title", "input": "Product Features" }}
+    3. Observe: {{ "step": "observe", "content": "Response: {{'found': true, 'page_id': 'xyz789'}}. Page exists!" }}
+    4. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "xyz789" }}
+    5. Observe: {{ "step": "observe", "content": "Page has sections: What This Does (detailed), Key Features (8 items), How It Works... This is COMPREHENSIVE. Will update only changed sections." }}
+    6. Action: {{ "step": "action", "function": "get_github_diff", "input": "owner/repo|before|after" }}
+    7. Continue with Workflow B (updating existing sections)...
+    
+    ## Full Workflow A Continued (Empty Page):
+    10. Action: {{ "step": "action", "function": "list_all_github_files", "input": "owner/repo|sha" }}
+    11. Observe: {{ "step": "observe", "content": "Found app.py, services/notion.py, generate_notion_docs.py, prompts/. This is a documentation automation system." }}
+    12. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|app.py|sha" }}
+    13. Observe: {{ "step": "observe", "content": "FastAPI webhook that receives GitHub events, triggers AI agent to generate docs..." }}
+    14. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
+    15. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting. Now have full picture of system capabilities." }}
+    16. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building section 1 now..." }}
+    17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|What This Project Does" }}
+    18. Observe: {{ "step": "observe", "content": "Got block object from 'block' field in response" }}
+    19. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system automatically converts code changes into business-friendly documentation." }}
+    20. Observe: {{ "step": "observe", "content": "Got block object from 'block' field" }}
+    21. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors repositories and generates clear explanations." }}
+    22. Observe: {{ "step": "observe", "content": "Got block object from 'block' field. Now have 3 blocks for section 1." }}
+    23. Write: {{ "step": "write", "content": "Appending section 1 with 3 blocks..." }}
+    24. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[block1_json_from_response, block2_json_from_response, block3_json_from_response]" }}
+    25. Observe: {{ "step": "observe", "content": "Section 1 added successfully. Moving to section 2..." }}
+    26. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
+    27. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Automated Documentation" }}
+    28. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Business-Friendly Language" }}
+    29-30. Create more feature bullets
+    31. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[section2_blocks_array]" }}
+    32. Observe: {{ "step": "observe", "content": "Section 2 added. Moving to section 3..." }}
+    33-50. Repeat for remaining 4 sections (How It Works, Impact, Security, Status)
+    51. Output: {{ "step": "output", "content": "Created comprehensive documentation with 6 complete sections. All content is business-focused and stakeholder-ready." }}
     
     ## Example Workflow B: Updating Existing Documentation (Changes Only):
     1. Plan: {{ "step": "plan", "content": "Need to analyze recent changes and update relevant documentation sections" }}

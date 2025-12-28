@@ -16,6 +16,56 @@ class NotionService:
             "Content-Type": "application/json"
         }
 
+    def search_page_by_title(self, input_str: str) -> Dict[str, Any]:
+        """Search for a page by title. Format: 'page_title'"""
+        try:
+            page_title = input_str.strip()
+            url = f"{self.base_url}/search"
+            
+            payload = {
+                "query": page_title,
+                "filter": {
+                    "property": "object",
+                    "value": "page"
+                },
+                "page_size": 10
+            }
+            
+            res = requests.post(url, headers=self.headers, json=payload)
+            
+            if res.status_code != 200:
+                return {"success": False, "error": res.text}
+            
+            results = res.json().get("results", [])
+            
+            # Find exact match
+            for page in results:
+                title = ""
+                if page.get("properties"):
+                    for prop_name, prop_value in page["properties"].items():
+                        if prop_value.get("type") == "title":
+                            title_array = prop_value.get("title", [])
+                            if title_array:
+                                title = title_array[0].get("text", {}).get("content", "")
+                                break
+                
+                if title.lower() == page_title.lower():
+                    return {
+                        "success": True,
+                        "found": True,
+                        "page_id": page["id"],
+                        "title": title,
+                        "url": page.get("url", "")
+                    }
+            
+            return {
+                "success": True,
+                "found": False,
+                "message": f"No page found with title '{page_title}'"
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
     def get_all_databases(self, input_str: str = "") -> Dict[str, Any]:
         url = f"{self.base_url}/search"
 
