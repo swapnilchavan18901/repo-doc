@@ -123,34 +123,57 @@ def get_notion_prompt(context_info: str) -> str:
 
     ## Documentation Strategy:
     
-    ### CRITICAL: Two Different Workflows Based on Documentation State
+    ### STEP 1: Find or Create Documentation Page
+    1. If NO page_id or database_id provided in context:
+       - Call get_notion_databases() to find available databases
+       - Search for existing page with repo name OR create new page
+       - Use the database_id from CONTEXT to create page if needed
+    2. If page_id provided in context:
+       - Use that page directly
     
-    **Workflow A: CREATING NEW/EMPTY DOCUMENTATION (First Time or Empty Page)**
-    1. Check if documentation exists using get_notion_page_content()
-    2. If page is NEW or EMPTY (no meaningful content):
-       - Use list_all_github_files() to get complete file structure
-       - Read key files (main entry points, core modules, config files)
-       - Analyze the ENTIRE codebase to understand ALL features
-       - Create COMPREHENSIVE documentation covering ALL features and capabilities
-       - Focus on what the system does, not just recent changes
-       - Document the full feature set, architecture, and business value
+    ### STEP 2: CRITICAL - Determine Workflow Based on Content State
     
-    **Workflow B: UPDATING EXISTING DOCUMENTATION (Page Has Content)**
-    1. Get existing page content using get_notion_page_content()
-    2. If documentation already exists with comprehensive content:
-       - Use get_github_diff() to see what changed (if commit SHAs provided)
-       - Read changed files to understand modifications
-       - Update ONLY the affected sections
-       - Add new features if any
-       - Keep existing documentation intact
+    **Always call get_notion_page_content() FIRST to check what's there!**
     
-    ### How to Determine Which Workflow:
-    - If get_notion_page_content() shows empty or minimal content (like just "What This Page Covers") → Use Workflow A (CREATE FULL DOCS)
-    - If get_notion_page_content() shows comprehensive sections with features → Use Workflow B (UPDATE CHANGES ONLY)
+    **EMPTY/PLACEHOLDER PAGE INDICATORS (→ Use Workflow A):**
+    - Only has heading blocks with NO or MINIMAL content under them
+    - Sections like "What This Page Covers", "Key Outcomes" but EMPTY or just 1-2 generic sentences
+    - NO actual feature descriptions, NO implementation details
+    - Looks like a template waiting to be filled
+    - Example: Just headings + bullet points saying "Content will be updated"
     
-    ### Key Tools for Each Workflow:
-    - **Workflow A (Full Docs)**: list_all_github_files, read_github_file (multiple files), create comprehensive sections
-    - **Workflow B (Updates)**: get_github_diff, read_github_file (changed files only), update_notion_section
+    **COMPREHENSIVE DOCUMENTATION INDICATORS (→ Use Workflow B):**
+    - Has detailed paragraphs explaining what the system does
+    - Lists multiple specific features with descriptions
+    - Contains workflow steps, impact metrics, technical capabilities
+    - Clearly documents the actual functionality of the codebase
+    
+    ---
+    
+    **Workflow A: CREATING COMPREHENSIVE DOCUMENTATION (Empty/Placeholder Page)**
+    TRIGGER: Page has only headings or placeholder text
+    
+    ACTIONS:
+    1. Use list_all_github_files() to see ENTIRE codebase structure
+    2. Read MULTIPLE key files (app.py, main services, config, README)
+    3. Analyze ALL features, capabilities, and integrations
+    4. Create COMPLETE documentation with ALL sections filled:
+       - What This Project Does (actual system description)
+       - Key Features (ALL features, not just one)
+       - How the System Works (complete workflow)
+       - Impact & Results (business outcomes)
+       - Security & Reliability
+       - Current Status
+    5. Update each section with comprehensive, detailed content
+    
+    **Workflow B: UPDATING EXISTING DOCUMENTATION (Has Real Content)**
+    TRIGGER: Page already has detailed feature descriptions and content
+    
+    ACTIONS:
+    1. Use get_github_diff() to see what changed
+    2. Read only the changed files
+    3. Update ONLY affected sections
+    4. Keep existing documentation intact
 
     ## Notion Workflow Instructions (CRITICAL - SECTION-BASED EDITING):
     
@@ -214,19 +237,24 @@ def get_notion_prompt(context_info: str) -> str:
     - Update specific sections only, don't recreate entire pages
     - Generate business-friendly content for the specific sections being updated
 
-    ## Example Workflow A: Creating Comprehensive Documentation (New/Empty Page):
-    1. Plan: {{ "step": "plan", "content": "Need to check if documentation exists and create comprehensive feature docs" }}
-    2. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "page_id" }}
-    3. Observe: {{ "step": "observe", "content": "Page exists but only has placeholder headings. Need to create FULL documentation covering all features." }}
-    4. Action: {{ "step": "action", "function": "list_all_github_files", "input": "owner/repo|sha" }}
-    5. Observe: {{ "step": "observe", "content": "Found app.py, services/, prompts/, config files. This is a documentation automation system." }}
-    6. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|app.py|sha" }}
-    7. Observe: {{ "step": "observe", "content": "Main entry point shows webhook handling, document generation, GitHub integration..." }}
-    8. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
-    9. Observe: {{ "step": "observe", "content": "Notion service provides page creation, content updates, block formatting..." }}
-    10. Write: {{ "step": "write", "content": "Creating comprehensive documentation sections covering all features..." }}
-    11-15. Multiple create_notion_blocks() and update_notion_section() calls for each section
-    16. Output: {{ "step": "output", "content": "Created complete documentation covering all system features, capabilities, and business value" }}
+    ## Example Workflow A: Creating Comprehensive Documentation (Empty/Placeholder Page):
+    1. Plan: {{ "step": "plan", "content": "Need to find/create page and check if full documentation exists" }}
+    2. Action: {{ "step": "action", "function": "get_notion_databases", "input": "" }}
+    3. Observe: {{ "step": "observe", "content": "Found database. Will search for or create page for this repo." }}
+    4. Action: {{ "step": "action", "function": "create_notion_doc_page", "input": "database_id|Repo Documentation" }}
+    5. Observe: {{ "step": "observe", "content": "Created page. Now checking content..." }}
+    6. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "page_id" }}
+    7. Observe: {{ "step": "observe", "content": "Page has headings 'What This Page Covers', 'Key Outcomes' but ONLY placeholder text like 'Content will be updated'. This is EMPTY. Need FULL COMPREHENSIVE DOCS." }}
+    8. Action: {{ "step": "action", "function": "list_all_github_files", "input": "owner/repo|sha" }}
+    9. Observe: {{ "step": "observe", "content": "Found app.py, services/notion.py, generate_notion_docs.py, prompts/. This is a documentation automation system." }}
+    10. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|app.py|sha" }}
+    11. Observe: {{ "step": "observe", "content": "FastAPI webhook that receives GitHub events, triggers AI agent to generate docs..." }}
+    12. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
+    13. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting..." }}
+    14-20. Read more files, create comprehensive blocks for ALL sections
+    21. Action: {{ "step": "action", "function": "update_notion_section", "input": "page_id|What This Project Does|[comprehensive_blocks]" }}
+    22-25. Update all other sections with full feature documentation
+    26. Output: {{ "step": "output", "content": "Created comprehensive documentation covering ALL features: webhook automation, AI-powered doc generation, Notion integration, GitHub analysis, business-focused content translation" }}
     
     ## Example Workflow B: Updating Existing Documentation (Changes Only):
     1. Plan: {{ "step": "plan", "content": "Need to analyze recent changes and update relevant documentation sections" }}
@@ -256,14 +284,30 @@ def get_notion_prompt(context_info: str) -> str:
     3. Use append_notion_blocks() to add all sections with proper structure
 
     CRITICAL NOTION WORKFLOW REMINDER:
-    - **ALWAYS check page content FIRST** to determine if you need full docs or updates only
-    - If page is empty/minimal → Create COMPREHENSIVE documentation of ALL features
-    - If page has content → Update ONLY changed sections
-    - You MUST use Notion tools to create/update documentation before reaching the "output" step
-    - Do NOT provide an "output" response until you have successfully updated Notion
+    
+    🚨 EMPTY PAGE DETECTION 🚨
+    If get_notion_page_content() shows:
+    - Headings like "What This Page Covers", "Key Outcomes", "Current Status" BUT
+    - Content is just placeholder text ("will be updated", "quick insights", generic statements)
+    - NO actual feature descriptions, NO specific capabilities listed
+    
+    → THIS IS AN EMPTY PAGE! You MUST create FULL COMPREHENSIVE DOCUMENTATION!
+    
+    **For Empty/Placeholder Pages:**
+    1. Call list_all_github_files() to see entire repo
+    2. Read multiple files (app.py, services/*.py, main modules)
+    3. Document EVERY feature you find
+    4. Fill ALL sections with detailed, specific content
+    5. Do NOT just update one section - update EVERYTHING
+    
+    **For Pages with Real Content:**
+    1. Use get_github_diff() for changes only
+    2. Update specific affected sections
+    
+    **You MUST:**
+    - Use Notion tools to create/update documentation before "output" step
     - Use proper Notion block formatting for all content
-    - For full docs: analyze entire codebase using list_all_github_files and read_github_file
-    - For updates: use get_github_diff and update specific sections only
+    - NOT output until Notion is actually updated
 
     REMEMBER: Your Notion documentation should be understandable by executives, managers, and non-technical stakeholders. Focus on WHAT the system does and WHY it matters, not HOW it's built. Translate all technical concepts into business outcomes and value in properly formatted Notion blocks.
     """
