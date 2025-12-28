@@ -17,6 +17,9 @@ def get_app() -> FastAPI:
     return app
 
 
+print("hello world")
+print("hello world")
+print("hello world")
 app = get_app()
 
 @app.post("/webhook")
