@@ -165,44 +165,12 @@ def get_notion_prompt(context_info: str) -> str:
     1. Use list_all_github_files() to see ENTIRE codebase structure
     2. Read MULTIPLE key files (app.py, main services, config, README)
     3. Analyze ALL features, capabilities, and integrations
-    4. **NOW CREATE NOTION CONTENT ONE BLOCK AT A TIME**:
-       - For EACH block in your documentation:
-         a. Call create_notion_blocks() for one block (heading/paragraph/bullet)
-         b. Get the response with "block" field
-         c. IMMEDIATELY call append_notion_blocks() with JUST that single block
-         d. Move to next block
-       - Repeat for ALL blocks across all 6 sections
-    5. Create COMPLETE documentation with ALL sections filled:
-       - What This Project Does (heading + 2-3 paragraphs)
-       - Key Features (heading + bullet list with 5-10 features)
-       - How the System Works (heading + 5-7 step workflow)
-       - Impact & Results (heading + bullet points on outcomes)
-       - Security & Reliability (heading + 3-4 paragraphs)
-       - Current Status (heading + 3-4 bullet points)
+    4. **ADD CONTENT USING add_block_to_page**:
+       - Call add_block_to_page('page_id|block_type|text') for EACH block
+       - This creates AND appends in one step
+       - Repeat for all 6 sections
     
-    🚨 CRITICAL FOR EMPTY PAGES 🚨
-    - Use append_notion_blocks() to ADD content section by section
-    - DO NOT use update_notion_section() - headings don't exist yet!
-    - Process ONE SECTION at a time to avoid JSON errors
-    
-    🚨 HOW TO ADD BLOCKS - ULTRA SIMPLE APPROACH 🚨
-    
-    **USE add_block_to_page FOR EACH BLOCK - ONE CALL PER BLOCK!**
-    
-    For EACH block you want to add:
-    1. Action: add_block_to_page('page_id|h2|Section Title')
-    2. Observe: Block added successfully
-    3. Action: add_block_to_page('page_id|paragraph|Your paragraph text here')
-    4. Observe: Block added successfully
-    5. Action: add_block_to_page('page_id|bullet|First bullet point')
-    6. Observe: Block added successfully
-    
-    Repeat for EVERY SINGLE block - heading, paragraph, bullet, etc.
-    
-    🚨 This tool creates AND appends in ONE step - no need for two separate calls! 🚨
-    
-    ⚠️ AFTER analyzing code, DO NOT call generate_notion_docs or any non-existent tools!
-    ⚠️ For EMPTY pages: Do ONE SECTION at a time → create blocks → extract → append → move to next section
+    🚨 CRITICAL: Use add_block_to_page for empty pages - it handles create + append automatically! 🚨
     
     **Workflow B: UPDATING EXISTING DOCUMENTATION (Has Real Content)**
     TRIGGER: Page already has detailed feature descriptions and content
@@ -213,204 +181,45 @@ def get_notion_prompt(context_info: str) -> str:
     3. Update ONLY affected sections
     4. Keep existing documentation intact
 
-    ## Notion Workflow Instructions (CRITICAL - SECTION-BASED EDITING):
+    ## Block Format Reference:
     
-    ### PREFERRED: Section-Based Updates (Use This 95% of the Time)
-    - **ALWAYS use update_notion_section** for updating existing documentation sections
-    - Format: 'page_id|heading_text|content_blocks_json'
-    - This is MUCH more efficient than recreating entire pages
-    - Only modifies the specific section that changed
+    **add_block_to_page format:** 'page_id|block_type|text'
     
-    ### Workflow for Notion Documentation:
-    1. Use get_github_diff() to identify changed files (format in context)
-    2. Use read_github_file() to examine changed files and understand feature modifications
-    3. Use get_notion_page_content() to read existing Notion page structure (if updating existing page)
-    4. **IDENTIFY the exact section** that needs updating by reading the section structure
-    5. Use create_notion_blocks() to create properly formatted Notion blocks for your content
-    6. Use update_notion_section() to update ONLY that specific section
-    7. If multiple sections need updates, call update_notion_section multiple times
+    **Block types:**
+    - h1, h2, h3 - Headings
+    - paragraph - Regular text
+    - bullet - Bulleted list item
+    - numbered - Numbered list item
+    - quote - Quote block
+    - code - Code block (format: 'page_id|code|code_text|language')
+    - callout - Callout box (format: 'page_id|callout|text|emoji')
+    - divider - Horizontal line
+    - todo - Checkbox (format: 'page_id|todo|text|true/false')
     
-    ### Notion Block Creation - CRITICAL USAGE INSTRUCTIONS:
-    
-    🚨 **IMPORTANT: create_notion_blocks() creates ONE BLOCK AT A TIME** 🚨
-    
-    **DO NOT pass multiple blocks with newlines in one call!**
-    ❌ WRONG: create_notion_blocks('h2|Title\nparagraph|Text\nbullet|Item')
-    ✅ CORRECT: Call create_notion_blocks() multiple times, once per block
-    
-    **For Multiple Blocks:**
-    Option 1: Call create_notion_blocks() separately for each block, collect results
-    Option 2: Use 'mixed' type with pre-built JSON array
-    
-    **Single Block Formats:**
-    
-    **Headings (one at a time):**
-    - "h1|Main Title" - Largest heading (Heading 1)
-    - "h2|Section Title" - Medium heading (Heading 2)
-    - "h3|Subsection Title" - Small heading (Heading 3)
-    
-    **Text & Lists (one at a time):**
-    - "paragraph|Your paragraph text" - Regular paragraph
-    - "bullet|Bullet point text" - Bulleted list item
-    - "numbered|Numbered item text" - Numbered list item
-    - "quote|Quoted text" - Quote/blockquote
-    
-    **Code & Technical:**
-    - "code|your code here|python" - Code block (default: python)
-    - "code|console.log('test')|javascript" - Code with language
-    
-    **Interactive & Special:**
-    - "callout|Important message|💡" - Callout box (default emoji: 💡)
-    - "callout|Warning text|⚠️" - Callout with custom emoji
-    - "todo|Task description|false" - Todo checkbox (default: unchecked)
-    - "todo|Completed task|true" - Checked todo item
-    - "toggle|Click to expand|[children_json]" - Collapsible section
-    - "divider" - Horizontal divider line
-    - "toc" or "table_of_contents" - Auto-generated table of contents
-    
-    **Multiple Blocks (advanced):**
-    - "mixed|[json_array]" - Pass pre-built JSON array of multiple blocks
-    
-    ### When to Use Each Notion Tool:
-    - **get_notion_databases**: First step - find available databases
-    - **create_notion_doc_page**: Creating completely NEW documentation pages
-    - **get_notion_page_content**: Read existing page structure before updating
-    - **create_notion_blocks**: Helper to format individual blocks (call many times to build array)
-    
-    🚨 CRITICAL - Choose correct update method:
-    - **append_notion_blocks**: For EMPTY pages or adding new sections at end
-      → Use when page has 0 blocks or when adding brand new sections
-      → Format: 'page_id|[all_blocks_json_array]'
-    
-    - **update_notion_section**: For EXISTING sections with headings already present
-      → Use when heading exists and you need to replace its content
-      → Format: 'page_id|heading_text|[content_blocks_json]'
-      → Will FAIL if heading doesn't exist!
-    
-    - **insert_blocks_after_text**: Insert content after specific text
-    - **insert_blocks_after_block_id**: Insert content after specific block ID
-    
-    ### Important Rules:
-    - Use get_github_diff() first to see what changed (format provided in context)
-    - Use read_github_file() to examine changed files
-    - ALWAYS read the Notion page structure first before editing
-    - Create properly formatted Notion blocks using create_notion_blocks()
-    - Update specific sections only, don't recreate entire pages
-    - Generate business-friendly content for the specific sections being updated
+    ## Tool Selection:
+    - **Empty page**: Use add_block_to_page for each block
+    - **Existing page with sections**: Use update_notion_section to replace section content
+    - **Insert between blocks**: Use insert_blocks_after_text or insert_blocks_after_block_id
 
-    ## Example Workflow A: Creating Comprehensive Documentation (Empty/Placeholder Page):
-    1. Plan: {{ "step": "plan", "content": "Need to find 'Product Features' page or create it if doesn't exist" }}
-    2. Action: {{ "step": "action", "function": "search_page_by_title", "input": "Product Features" }}
-    3. Observe: {{ "step": "observe", "content": "Response: {{'found': false}}. Page doesn't exist. Need to create it." }}
-    4. Action: {{ "step": "action", "function": "get_notion_databases", "input": "" }}
-    5. Observe: {{ "step": "observe", "content": "Found database_id: 2d322f89..." }}
-    6. Action: {{ "step": "action", "function": "create_notion_doc_page", "input": "2d322f89...|Product Features" }}
-    7. Observe: {{ "step": "observe", "content": "Created 'Product Features' page with id: abc123. Now checking if empty..." }}
-    8. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "abc123" }}
-    9. Observe: {{ "step": "observe", "content": "Page is empty. Need FULL COMPREHENSIVE DOCS." }}
+    ## Workflow Examples:
     
-    ## Example: When Product Features Page Already Exists:
-    1. Plan: {{ "step": "plan", "content": "Need to find 'Product Features' page" }}
-    2. Action: {{ "step": "action", "function": "search_page_by_title", "input": "Product Features" }}
-    3. Observe: {{ "step": "observe", "content": "Response: {{'found': true, 'page_id': 'xyz789'}}. Page exists!" }}
-    4. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "xyz789" }}
-    5. Observe: {{ "step": "observe", "content": "Page has sections: What This Does (detailed), Key Features (8 items), How It Works... This is COMPREHENSIVE. Will update only changed sections." }}
-    6. Action: {{ "step": "action", "function": "get_github_diff", "input": "owner/repo|before|after" }}
-    7. Continue with Workflow B (updating existing sections)...
+    **Empty Page (Workflow A):**
+    1. search_page_by_title('Product Features')
+    2. If not found: get_notion_databases() → create_notion_doc_page('db_id|Product Features')
+    3. list_all_github_files() → read key files
+    4. Add blocks: add_block_to_page('page_id|h2|Section Title') for each block
+    5. Output when complete
     
-    ## Full Workflow A Continued (Empty Page):
-    10. Action: {{ "step": "action", "function": "list_all_github_files", "input": "owner/repo|sha" }}
-    11. Observe: {{ "step": "observe", "content": "Found app.py, services/notion.py, generate_notion_docs.py, prompts/. This is a documentation automation system." }}
-    12. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|app.py|sha" }}
-    13. Observe: {{ "step": "observe", "content": "FastAPI webhook that receives GitHub events, triggers AI agent to generate docs..." }}
-    14. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
-    15. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting. Now have full picture of system capabilities." }}
-    16. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building section 1 now..." }}
-    17. Action: {{ "step": "action", "function": "add_block_to_page", "input": "page_id|h2|What This Project Does" }}
-    18. Observe: {{ "step": "observe", "content": "Block added successfully" }}
-    19. Action: {{ "step": "action", "function": "add_block_to_page", "input": "page_id|paragraph|This system converts code changes into business-friendly documentation." }}
-    20. Observe: {{ "step": "observe", "content": "Block added successfully" }}
-    21-50. Continue for ALL remaining blocks (next paragraph, Key Features heading, all bullets, How It Works, etc.)
-    51. Output: {{ "step": "output", "content": "Created comprehensive documentation. All content is business-focused." }}
-    26. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
-    27. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Automated Documentation" }}
-    28. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Business-Friendly Language" }}
-    29-30. Create more feature bullets
-    31. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[section2_blocks_array]" }}
-    32. Observe: {{ "step": "observe", "content": "Section 2 added. Moving to section 3..." }}
-    33-50. Repeat for remaining 4 sections (How It Works, Impact, Security, Status)
-    51. Output: {{ "step": "output", "content": "Created comprehensive documentation with 6 complete sections. All content is business-focused and stakeholder-ready." }}
-    
-    ## Example Workflow B: Updating Existing Documentation (Changes Only):
-    1. Plan: {{ "step": "plan", "content": "Need to analyze recent changes and update relevant documentation sections" }}
-    2. Action: {{ "step": "action", "function": "get_notion_page_content", "input": "existing_page_id" }}
-    3. Observe: {{ "step": "observe", "content": "Found comprehensive documentation with sections: What This Does, Key Features, How It Works, Impact..." }}
-    4. Action: {{ "step": "action", "function": "get_github_diff", "input": "owner/repo|before_sha|after_sha" }}
-    5. Observe: {{ "step": "observe", "content": "Changes in app.py - new automation feature added for batch processing" }}
-    6. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|app.py|after_sha" }}
-    7. Observe: {{ "step": "observe", "content": "New batch processing feature reduces processing time significantly..." }}
-    8. Write: {{ "step": "write", "content": "Updating Key Features section to include new batch processing capability..." }}
-    9-11. Create blocks for new feature using create_notion_blocks()
-    12. Action: {{ "step": "action", "function": "update_notion_section", "input": "page_id|Key Features|[updated_blocks_json]" }}
-    13. Output: {{ "step": "output", "content": "Updated Key Features section with new batch processing capability" }}
+    **Existing Page (Workflow B):**
+    1. search_page_by_title('Product Features') → get page_id
+    2. get_github_diff() → identify changes
+    3. read_github_file() for changed files
+    4. update_notion_section('page_id|Section Name|new_blocks_json')
+    5. Output when complete
 
-    ## Example: Multiple Section Updates in Notion
-    If you need to update multiple sections:
-    1. Read the page to identify all section structures
-    2. Call update_notion_section once for each section:
-       - update_notion_section('page_id|What This Project Does|new_content_blocks')
-       - update_notion_section('page_id|Key Features|new_features_blocks')
-       - update_notion_section('page_id|Impact & Results|new_results_blocks')
-
-    ## Creating New Notion Documentation Page:
-    If no existing page, create new one:
-    1. Use get_notion_databases() to find available databases
-    2. Use create_notion_doc_page('database_id|Page Title') to create new page
-    3. Use append_notion_blocks() to add all sections with proper structure
-
-    CRITICAL NOTION WORKFLOW REMINDER:
-    
-    🚨 EMPTY PAGE DETECTION 🚨
-    If get_notion_page_content() shows:
-    - Headings like "What This Page Covers", "Key Outcomes", "Current Status" BUT
-    - Content is just placeholder text ("will be updated", "quick insights", generic statements)
-    - NO actual feature descriptions, NO specific capabilities listed
-    
-    → THIS IS AN EMPTY PAGE! You MUST create FULL COMPREHENSIVE DOCUMENTATION!
-    
-    **For Empty/Placeholder Pages:**
-    1. Call list_all_github_files() to see entire repo
-    2. Read multiple files (app.py, services/*.py, main modules)
-    3. Document EVERY feature you find
-    4. Fill ALL sections with detailed, specific content
-    5. Do NOT just update one section - update EVERYTHING
-    
-    **For Pages with Real Content:**
-    1. Use get_github_diff() for changes only
-    2. Update specific affected sections
-    
-    **You MUST:**
-    - Use Notion tools to create/update documentation before "output" step
-    - Call create_notion_blocks() ONCE per block (not multiline strings!)
-    - Collect block JSON results into array before calling update_notion_section
-    - Use proper Notion block formatting for all content
-    - NOT output until Notion is actually updated
-    
-    🚨 COMMON MISTAKES TO AVOID 🚨
-    ❌ create_notion_blocks('h2|Title') then forgetting to append  ← Block created but NOT added to page!
-    ❌ Calling create_notion_blocks multiple times without appending  ← Blocks never reach Notion!
-    ❌ Trying to build JSON arrays manually  ← Too complex and error-prone!
-    
-    ✅ CORRECT Process (one block at a time with add_block_to_page):
-       1. Action: add_block_to_page('page_id|h2|Section Title')
-       2. Observe: Block added successfully
-       3. Action: add_block_to_page('page_id|paragraph|Your text here')
-       4. Observe: Block added successfully
-       5. Action: add_block_to_page('page_id|bullet|First bullet point')
-       6. Observe: Block added successfully
-       
-       Continue for every single block - this tool does create + append automatically!
-
-
-    REMEMBER: Your Notion documentation should be understandable by executives, managers, and non-technical stakeholders. Focus on WHAT the system does and WHY it matters, not HOW it's built. Translate all technical concepts into business outcomes and value in properly formatted Notion blocks.
+    ## Key Reminders:
+    - Empty page = Use add_block_to_page for ALL blocks
+    - Existing page = Use update_notion_section for changed sections only
+    - Always output AFTER Notion is updated, not before
+    - Write for business stakeholders - focus on outcomes, not technical details
     """
