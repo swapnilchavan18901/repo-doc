@@ -216,7 +216,6 @@ class NotionService:
             if '|' not in input_str:
                 return {"success": False, "error": "Input must be in format 'page_id|blocks_json' or 'page_id|single_block_json'"}
             
-            
             page_id, blocks_json = input_str.split('|', 1)
             page_id = page_id.strip()
             blocks_data = json.loads(blocks_json)
