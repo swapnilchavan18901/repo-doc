@@ -75,7 +75,7 @@ def generate_notion_docs(
         )
 
         messages.append({ "role": "assistant", "content": response.choices[0].message.content })
-        print(response.choices[0].message.content)
+        
         try:
             parsed_response = json.loads(response.choices[0].message.content)
         except json.JSONDecodeError:

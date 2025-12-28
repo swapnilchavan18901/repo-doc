@@ -18,7 +18,7 @@ class GitHubService:
         self.api_key = GITHUB_APP_KEY
         self.base_url = "https://api.github.com"
         self.headers = {
-            "Authorization": f"token {self.api_key}",
+            "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/vnd.github.v3+json",
             "X-GitHub-Api-Version": "2022-11-28"
         }
