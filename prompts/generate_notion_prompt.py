@@ -6,7 +6,6 @@ This prompt guides the AI to create business-friendly, outcome-focused documenta
 def get_notion_prompt(context_info: str) -> str:
     """
     Generate the system prompt for Notion documentation agent.
-    
     Args:
         context_info: Contextual information about database_id or page_id
     
