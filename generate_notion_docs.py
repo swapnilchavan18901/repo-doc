@@ -6,7 +6,7 @@ from env import OPENAI_API_KEY
 from prompts.generate_notion_prompt import get_notion_prompt
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-DEFAULT_MAX_ITERATIONS = 50
+DEFAULT_MAX_ITERATIONS = 100
 
 github_service = GitHubService()
 notion_service = NotionService()
@@ -25,6 +25,7 @@ available_tools = {
     "update_notion_section": notion_service.replace_section,
     "append_notion_blocks": notion_service.append_blocks,
     "create_notion_blocks": notion_service.create_blocks,
+    "add_block_to_page": notion_service.add_block_to_page,
     "insert_blocks_after_text": notion_service.insert_between_by_text,
     "insert_blocks_after_block_id": notion_service.insert_after_block,
 }

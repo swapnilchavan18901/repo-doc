@@ -443,6 +443,39 @@ class NotionService:
             return {"success": True, "block": block}
         except Exception as e:
             return {"success": False, "error": str(e), "input": input_str}
+    
+    def add_block_to_page(self, input_str: str) -> Dict[str, Any]:
+        """Create and append a block to page in one step. Format: 'page_id|block_type|text' or 'page_id|block_type|text|extra_param'"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'page_id|block_type|text'"}
+            
+            parts = input_str.split('|', 1)
+            page_id = parts[0].strip()
+            block_input = parts[1]
+            
+            block_result = self.create_blocks(block_input)
+            
+            if not block_result.get("success"):
+                return block_result
+            
+            block = block_result.get("block")
+            if not block:
+                return {"success": False, "error": "No block created"}
+            
+            block_json = json.dumps(block)
+            append_result = self.append_blocks(f"{page_id}|{block_json}")
+            
+            if append_result.get("success"):
+                return {
+                    "success": True,
+                    "message": f"Added {block['type']} to page",
+                    "block_type": block['type']
+                }
+            else:
+                return append_result
+        except Exception as e:
+            return {"success": False, "error": str(e), "input": input_str}
 
     def insert_after_block(self, input_str: str) -> Dict[str, Any]:
         """Insert blocks after block ID. Format: 'block_id|blocks_json'"""

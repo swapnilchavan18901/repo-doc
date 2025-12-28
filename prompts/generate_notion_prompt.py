@@ -36,10 +36,11 @@ def get_notion_prompt(context_info: str) -> str:
     - **get_notion_page_content**: Read existing Notion page content with section structure
     - **create_notion_doc_page**: Create a new documentation page in a Notion database
     - **update_notion_section**: Update specific sections in existing Notion pages (replaces section content)
-    - **append_notion_blocks**: Add new content blocks to end of Notion pages
+    - **add_block_to_page**: Create AND append a block to page in ONE STEP (PREFERRED). Format: 'page_id|block_type|text'
+    - **append_notion_blocks**: Add pre-built content blocks to end of Notion pages (advanced)
     - **insert_blocks_after_text**: Insert blocks after a block with specific text (for inserting between sections)
     - **insert_blocks_after_block_id**: Insert blocks after a specific block ID (precise insertion)
-    - **create_notion_blocks**: Create properly formatted Notion blocks (headings, paragraphs, bullets, etc.)
+    - **create_notion_blocks**: Create block JSON only (does NOT add to page - use add_block_to_page instead)
 
     ## Workflow Process:
     You must follow a strict step-by-step workflow using JSON responses:
@@ -184,21 +185,21 @@ def get_notion_prompt(context_info: str) -> str:
     - DO NOT use update_notion_section() - headings don't exist yet!
     - Process ONE SECTION at a time to avoid JSON errors
     
-    🚨 HOW TO HANDLE RESPONSES - ULTRA SIMPLE APPROACH 🚨
+    🚨 HOW TO ADD BLOCKS - ULTRA SIMPLE APPROACH 🚨
     
-    **APPEND BLOCKS ONE AT A TIME - NO JSON ARRAYS!**
+    **USE add_block_to_page FOR EACH BLOCK - ONE CALL PER BLOCK!**
     
-    For EACH block you create:
-    1. Action: create_notion_blocks('h2|Title')
-    2. Observe: Tool returned {{"success": True, "block": {{"object":"block","type":"heading_2",...}}}}
-    3. Action: append_notion_blocks('page_id|{{"object":"block","type":"heading_2",...}}')
-       ↑ Copy the EXACT "block" value from step 2's observe output
-    4. Observe: Block appended successfully
+    For EACH block you want to add:
+    1. Action: add_block_to_page('page_id|h2|Section Title')
+    2. Observe: Block added successfully
+    3. Action: add_block_to_page('page_id|paragraph|Your paragraph text here')
+    4. Observe: Block added successfully
+    5. Action: add_block_to_page('page_id|bullet|First bullet point')
+    6. Observe: Block added successfully
     
     Repeat for EVERY SINGLE block - heading, paragraph, bullet, etc.
-    Call append_notion_blocks ONCE PER BLOCK with just that single block's JSON.
     
-    🚨 DO NOT try to build arrays! Append one block at a time! 🚨
+    🚨 This tool creates AND appends in ONE step - no need for two separate calls! 🚨
     
     ⚠️ AFTER analyzing code, DO NOT call generate_notion_docs or any non-existent tools!
     ⚠️ For EMPTY pages: Do ONE SECTION at a time → create blocks → extract → append → move to next section
@@ -325,15 +326,11 @@ def get_notion_prompt(context_info: str) -> str:
     14. Action: {{ "step": "action", "function": "read_github_file", "input": "owner/repo|services/notion.py|sha" }}
     15. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting. Now have full picture of system capabilities." }}
     16. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building section 1 now..." }}
-    17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|What This Project Does" }}
-    18. Observe: {{ "step": "observe", "content": "Got {{'block': {{'object':'block','type':'heading_2',...}}}}" }}
-    19. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|{{'object':'block','type':'heading_2',...}}" }}
-    20. Observe: {{ "step": "observe", "content": "Heading appended" }}
-    21. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system converts code changes into business-friendly documentation." }}
-    22. Observe: {{ "step": "observe", "content": "Got {{'block': {{'object':'block','type':'paragraph',...}}}}" }}
-    23. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|{{'object':'block','type':'paragraph',...}}" }}
-    24. Observe: {{ "step": "observe", "content": "Paragraph appended" }}
-    25-50. Continue for ALL remaining blocks (next paragraph, Key Features heading, all bullets, How It Works, etc.)
+    17. Action: {{ "step": "action", "function": "add_block_to_page", "input": "page_id|h2|What This Project Does" }}
+    18. Observe: {{ "step": "observe", "content": "Block added successfully" }}
+    19. Action: {{ "step": "action", "function": "add_block_to_page", "input": "page_id|paragraph|This system converts code changes into business-friendly documentation." }}
+    20. Observe: {{ "step": "observe", "content": "Block added successfully" }}
+    21-50. Continue for ALL remaining blocks (next paragraph, Key Features heading, all bullets, How It Works, etc.)
     51. Output: {{ "step": "output", "content": "Created comprehensive documentation. All content is business-focused." }}
     26. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
     27. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Automated Documentation" }}
@@ -400,23 +397,19 @@ def get_notion_prompt(context_info: str) -> str:
     - NOT output until Notion is actually updated
     
     🚨 COMMON MISTAKES TO AVOID 🚨
-    ❌ create_notion_blocks('h2|Title\nparagraph|Text\nbullet|Point')  ← Multiple blocks in one call!
-    ❌ append_notion_blocks('page_id|[all_blocks_json_array]')  ← Placeholder string, not actual JSON!
-    ❌ Manually typing JSON like {{"object":"block",...}}  ← Don't type JSON, use response objects!
-    ❌ JSON with syntax errors: missing commas, extra spaces, mismatched brackets
+    ❌ create_notion_blocks('h2|Title') then forgetting to append  ← Block created but NOT added to page!
+    ❌ Calling create_notion_blocks multiple times without appending  ← Blocks never reach Notion!
+    ❌ Trying to build JSON arrays manually  ← Too complex and error-prone!
     
-    ✅ CORRECT Process (one block at a time):
-       1. Action: create_notion_blocks('h2|Title')
-       2. Observe: {{"success": True, "block": {{"object":"block","type":"heading_2",...}}}}
-       3. Action: append_notion_blocks('page_id|{{"object":"block","type":"heading_2",...}}')
-          ↑ Copy EXACT block from step 2!
-       4. Observe: Appended successfully
-       5. Action: create_notion_blocks('paragraph|Text')
-       6. Observe: {{"success": True, "block": {{"object":"block","type":"paragraph",...}}}}
-       7. Action: append_notion_blocks('page_id|{{"object":"block","type":"paragraph",...}}')
-       8. Observe: Appended successfully
+    ✅ CORRECT Process (one block at a time with add_block_to_page):
+       1. Action: add_block_to_page('page_id|h2|Section Title')
+       2. Observe: Block added successfully
+       3. Action: add_block_to_page('page_id|paragraph|Your text here')
+       4. Observe: Block added successfully
+       5. Action: add_block_to_page('page_id|bullet|First bullet point')
+       6. Observe: Block added successfully
        
-       Continue for every single block - no arrays needed!
+       Continue for every single block - this tool does create + append automatically!
 
 
     REMEMBER: Your Notion documentation should be understandable by executives, managers, and non-technical stakeholders. Focus on WHAT the system does and WHY it matters, not HOW it's built. Translate all technical concepts into business outcomes and value in properly formatted Notion blocks.
