@@ -1,7 +1,9 @@
 import requests
 import base64
+import jwt
+import time
 from typing import Dict, List, Any, Optional
-from env import GITHUB_APP_KEY
+from env import GITHUB_APP_ID, GITHUB_PRIVATE_KEY
 
 
 class GitHubService:
@@ -15,10 +17,70 @@ class GitHubService:
         Initialize GitHub service.
         Thread-safe: No instance state for repo_full_name.
         """
-        self.api_key = GITHUB_APP_KEY
+        self.app_id = GITHUB_APP_ID
+        self.private_key = GITHUB_PRIVATE_KEY
         self.base_url = "https://api.github.com"
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
+        self.installation_token = None
+        self.token_expires_at = 0
+    
+    def _generate_jwt(self) -> str:
+        """Generate JWT for GitHub App authentication"""
+        now = int(time.time())
+        payload = {
+            "iat": now - 60,  # Issued 60 seconds in the past to account for clock drift
+            "exp": now + (10 * 60),  # Expires in 10 minutes
+            "iss": self.app_id
+        }
+        return jwt.encode(payload, self.private_key, algorithm="RS256")
+    
+    def _get_installation_token(self, repo_full_name: str) -> str:
+        """Get installation access token for a repository"""
+        # Check if we have a valid cached token
+        if self.installation_token and time.time() < self.token_expires_at:
+            return self.installation_token
+        
+        # Generate JWT for authentication
+        jwt_token = self._generate_jwt()
+        
+        # Get installation ID for the repository
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        
+        # First, get the installation ID
+        owner, repo = repo_full_name.split('/')
+        install_url = f"{self.base_url}/repos/{repo_full_name}/installation"
+        
+        try:
+            res = requests.get(install_url, headers=headers)
+            if res.status_code != 200:
+                raise Exception(f"Failed to get installation: {res.text}")
+            
+            installation_id = res.json()["id"]
+            
+            # Exchange JWT for installation token
+            token_url = f"{self.base_url}/app/installations/{installation_id}/access_tokens"
+            res = requests.post(token_url, headers=headers)
+            
+            if res.status_code != 201:
+                raise Exception(f"Failed to get installation token: {res.text}")
+            
+            token_data = res.json()
+            self.installation_token = token_data["token"]
+            # Cache token (expires in 1 hour, refresh 5 min early)
+            self.token_expires_at = time.time() + (55 * 60)
+            
+            return self.installation_token
+            
+        except Exception as e:
+            raise Exception(f"GitHub App authentication failed: {str(e)}")
+    
+    def _get_headers(self, repo_full_name: str) -> Dict[str, str]:
+        """Get authenticated headers for API requests"""
+        token = self._get_installation_token(repo_full_name)
+        return {
+            "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github.v3+json",
             "X-GitHub-Api-Version": "2022-11-28"
         }
@@ -48,7 +110,8 @@ class GitHubService:
         url = f"{self.base_url}/repos/{repo_full_name}/compare/{before_sha}...{after_sha}"
         
         try:
-            res = requests.get(url, headers=self.headers)
+            headers = self._get_headers(repo_full_name)
+            res = requests.get(url, headers=headers)
             
             if res.status_code != 200:
                 return {
@@ -112,7 +175,8 @@ class GitHubService:
         url = f"{self.base_url}/repos/{repo_full_name}/contents/{path}?ref={sha}"
         
         try:
-            res = requests.get(url, headers=self.headers)
+            headers = self._get_headers(repo_full_name)
+            res = requests.get(url, headers=headers)
             
             if res.status_code != 200:
                 return {
@@ -173,7 +237,8 @@ class GitHubService:
         url = f"{self.base_url}/repos/{repo_full_name}/contents/{filepath}?ref={sha}"
         
         try:
-            res = requests.get(url, headers=self.headers)
+            headers = self._get_headers(repo_full_name)
+            res = requests.get(url, headers=headers)
             
             if res.status_code != 200:
                 return {
@@ -245,7 +310,8 @@ class GitHubService:
         }
         
         try:
-            res = requests.get(url, headers=self.headers, params=params)
+            headers = self._get_headers(repo_full_name)
+            res = requests.get(url, headers=headers, params=params)
             
             if res.status_code != 200:
                 return {
@@ -305,7 +371,8 @@ class GitHubService:
         url = f"{self.base_url}/repos/{repo_full_name}/commits/{commit_sha}"
         
         try:
-            res = requests.get(url, headers=self.headers)
+            headers = self._get_headers(repo_full_name)
+            res = requests.get(url, headers=headers)
             
             if res.status_code != 200:
                 return {
