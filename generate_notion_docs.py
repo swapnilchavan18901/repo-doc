@@ -80,6 +80,7 @@ def generate_notion_docs(
         
         try:
             parsed_response = json.loads(response.choices[0].message.content)
+            print(f"📋 LLM Response: {json.dumps(parsed_response, indent=2)}")
         except json.JSONDecodeError:
             print(f"❌: Failed to parse JSON response: {response.choices[0].message.content}")
             break
