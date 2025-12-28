@@ -483,6 +483,7 @@ class NotionService:
 
     def paragraph(self, text: str) -> Dict[str, Any]:
         """Create a paragraph block"""
+        
         return {
             "object": "block",
             "type": "paragraph",
