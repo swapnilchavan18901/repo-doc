@@ -16,7 +16,7 @@ class NotionService:
             "Content-Type": "application/json"
         }
 
-    def get_all_databases(self) -> Dict[str, Any]:
+    def get_all_databases(self, input_str: str = "") -> Dict[str, Any]:
         url = f"{self.base_url}/search"
 
         payload = {
@@ -94,7 +94,18 @@ class NotionService:
             "properties": list(data["properties"].keys())
         }
 
-    def create_doc_page(self, database_id: str, title: str) -> Dict[str, Any]:
+    def create_doc_page(self, input_str: str) -> Dict[str, Any]:
+        """Create documentation page. Format: 'database_id|page_title'"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'database_id|page_title'"}
+            
+            database_id, title = input_str.split('|', 1)
+            database_id = database_id.strip()
+            title = title.strip()
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
+        
         # Step 1: get schema to resolve title key
         schema = self.get_database_schema(database_id)
 
@@ -149,7 +160,20 @@ class NotionService:
             "title": title
         }
 
-    def append_blocks(self, page_id: str, blocks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def append_blocks(self, input_str: str) -> Dict[str, Any]:
+        """Append blocks to page. Format: 'page_id|blocks_json'"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'page_id|blocks_json'"}
+            
+            page_id, blocks_json = input_str.split('|', 1)
+            page_id = page_id.strip()
+            blocks = json.loads(blocks_json)
+        except json.JSONDecodeError:
+            return {"success": False, "error": "Invalid JSON format for blocks"}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
+        
         url = f"{self.base_url}/blocks/{page_id}/children"
 
         payload = {
@@ -183,7 +207,22 @@ class NotionService:
 
         return res.json()["results"]
 
-    def replace_section(self,page_id: str,heading_text: str,new_blocks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def replace_section(self, input_str: str) -> Dict[str, Any]:
+        """Replace section. Format: 'page_id|heading_text|content_blocks_json'"""
+        try:
+            parts = input_str.split('|', 2)
+            if len(parts) != 3:
+                return {"success": False, "error": "Input must be in format 'page_id|heading_text|content_blocks_json'"}
+            
+            page_id, heading_text, content_json = parts
+            page_id = page_id.strip()
+            heading_text = heading_text.strip()
+            new_blocks = json.loads(content_json)
+        except json.JSONDecodeError:
+            return {"success": False, "error": "Invalid JSON format for content blocks"}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
+        
         blocks = self.get_page_blocks(page_id)
         start_index = None
         end_index = None
@@ -247,15 +286,122 @@ class NotionService:
         block_type = block["type"]
         rich_text = block[block_type].get("rich_text", [])
         return "".join(rt["text"]["content"] for rt in rich_text if rt["type"] == "text")
+    
+    def get_page_content(self, input_str: str) -> Dict[str, Any]:
+        """Get content from a Notion page with block structure. Format: 'page_id'"""
+        try:
+            page_id = input_str.strip()
+            blocks = self.get_page_blocks(page_id)
+            
+            content_sections = []
+            section_count = 0
+            
+            for i, block in enumerate(blocks):
+                block_type = block["type"]
+                
+                if block_type.startswith("heading"):
+                    section_count += 1
+                    text = self._get_block_text(block)
+                    content_sections.append({
+                        "section": section_count,
+                        "type": block_type,
+                        "text": text,
+                        "block_id": block["id"]
+                    })
+                elif block_type in ["paragraph", "bulleted_list_item", "numbered_list_item"]:
+                    text = self._get_block_text(block)
+                    if text.strip():
+                        content_sections.append({
+                            "section": section_count,
+                            "type": block_type,
+                            "text": text,
+                            "block_id": block["id"]
+                        })
+            
+            return {
+                "success": True,
+                "page_id": page_id,
+                "sections": content_sections,
+                "total_sections": section_count,
+                "note": "Content organized by sections for easy section-based editing"
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e), "page_id": input_str}
+    
+    def create_blocks(self, input_str: str) -> Dict[str, Any]:
+        """Create Notion blocks from text. Format: 'block_type|text' or 'block_type|text|extra_param'"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'block_type|text' or 'block_type|text|extra_param'"}
+            
+            parts = input_str.split('|')
+            block_type = parts[0].strip().lower()
+            
+            if block_type == "h1":
+                block = self.h1(parts[1].strip())
+            elif block_type == "h2":
+                block = self.h2(parts[1].strip())
+            elif block_type == "h3":
+                block = self.h3(parts[1].strip())
+            elif block_type == "paragraph":
+                block = self.paragraph(parts[1].strip())
+            elif block_type == "bullet":
+                block = self.bullet(parts[1].strip())
+            elif block_type == "numbered":
+                block = self.numbered(parts[1].strip())
+            elif block_type == "quote":
+                block = self.quote(parts[1].strip())
+            elif block_type == "code":
+                code_content = parts[1].strip()
+                language = parts[2].strip() if len(parts) > 2 else "python"
+                block = self.code(code_content, language)
+            elif block_type == "callout":
+                text = parts[1].strip()
+                emoji = parts[2].strip() if len(parts) > 2 else "💡"
+                block = self.callout(text, emoji)
+            elif block_type == "todo" or block_type == "to_do":
+                text = parts[1].strip()
+                checked = parts[2].strip().lower() == "true" if len(parts) > 2 else False
+                block = self.to_do(text, checked)
+            elif block_type == "toggle":
+                summary = parts[1].strip()
+                children = None
+                if len(parts) > 2:
+                    try:
+                        children = json.loads(parts[2])
+                    except json.JSONDecodeError:
+                        return {"success": False, "error": "Invalid JSON for toggle children"}
+                block = self.toggle(summary, children)
+            elif block_type == "divider":
+                block = self.divider()
+            elif block_type == "toc" or block_type == "table_of_contents":
+                block = self.table_of_contents()
+            elif block_type == "mixed":
+                try:
+                    return {"success": True, "blocks": json.loads(parts[1])}
+                except json.JSONDecodeError:
+                    return {"success": False, "error": "Invalid JSON for mixed blocks"}
+            else:
+                return {"success": False, "error": f"Unsupported block type: {block_type}"}
+            
+            return {"success": True, "block": block}
+        except Exception as e:
+            return {"success": False, "error": str(e), "input": input_str}
 
-    def insert_after_block(
-        self,
-        after_block_id: str,
-        new_blocks: list
-    ):
-        """
-        Insert new blocks immediately after a given block
-        """
+    def insert_after_block(self, input_str: str) -> Dict[str, Any]:
+        """Insert blocks after block ID. Format: 'block_id|blocks_json'"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'block_id|blocks_json'"}
+            
+            after_block_id, blocks_json = input_str.split('|', 1)
+            after_block_id = after_block_id.strip()
+            new_blocks = json.loads(blocks_json)
+        except json.JSONDecodeError:
+            return {"success": False, "error": "Invalid JSON format for blocks"}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
+        
         res = requests.patch(
             f"{self.base_url}/blocks/{after_block_id}/children",
             headers=self.headers,
@@ -263,22 +409,29 @@ class NotionService:
         )
 
         if res.status_code != 200:
-            raise Exception(res.text)
+            return {"success": False, "error": res.text}
 
         return {
             "success": True,
             "inserted_blocks": len(new_blocks)
         }
 
-    def insert_between_by_text(
-        self,
-        page_id: str,
-        after_text: str,
-        new_blocks: list
-    ):
-        """
-        Insert new blocks after the block whose text matches `after_text`
-        """
+    def insert_between_by_text(self, input_str: str) -> Dict[str, Any]:
+        """Insert blocks after text. Format: 'page_id|after_text|blocks_json'"""
+        try:
+            parts = input_str.split('|', 2)
+            if len(parts) != 3:
+                return {"success": False, "error": "Input must be in format 'page_id|after_text|blocks_json'"}
+            
+            page_id, after_text, blocks_json = parts
+            page_id = page_id.strip()
+            after_text = after_text.strip()
+            new_blocks = json.loads(blocks_json)
+        except json.JSONDecodeError:
+            return {"success": False, "error": "Invalid JSON format for blocks"}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
+        
         blocks = self.get_page_blocks(page_id)
 
         target_block = None
@@ -294,10 +447,8 @@ class NotionService:
                 "error": f"Block with text '{after_text}' not found"
             }
 
-        return self.insert_after_block(
-            after_block_id=target_block["id"],
-            new_blocks=new_blocks
-        )
+        block_input = f"{target_block['id']}|{blocks_json}"
+        return self.insert_after_block(block_input)
 
     #block builder
     def h1(self, text: str) -> Dict[str, Any]:
