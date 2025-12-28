@@ -211,14 +211,20 @@ class NotionService:
         }
 
     def append_blocks(self, input_str: str) -> Dict[str, Any]:
-        """Append blocks to page. Format: 'page_id|blocks_json'"""
+        """Append blocks. Format: 'page_id|blocks_json' or 'page_id|single_block_json'"""
         try:
             if '|' not in input_str:
-                return {"success": False, "error": "Input must be in format 'page_id|blocks_json'"}
+                return {"success": False, "error": "Input must be in format 'page_id|blocks_json' or 'page_id|single_block_json'"}
             
             page_id, blocks_json = input_str.split('|', 1)
             page_id = page_id.strip()
-            blocks = json.loads(blocks_json)
+            blocks_data = json.loads(blocks_json)
+            
+            # Support both single block and array of blocks
+            if isinstance(blocks_data, dict):
+                blocks = [blocks_data]  # Wrap single block in array
+            else:
+                blocks = blocks_data
         except json.JSONDecodeError:
             return {"success": False, "error": "Invalid JSON format for blocks"}
         except Exception as e:

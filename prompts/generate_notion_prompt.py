@@ -164,13 +164,13 @@ def get_notion_prompt(context_info: str) -> str:
     1. Use list_all_github_files() to see ENTIRE codebase structure
     2. Read MULTIPLE key files (app.py, main services, config, README)
     3. Analyze ALL features, capabilities, and integrations
-    4. **NOW CREATE NOTION CONTENT SECTION BY SECTION**:
-       - For EACH section (e.g., "What This Project Does"):
-         a. Call create_notion_blocks() for heading → get response with "block" field
-         b. Call create_notion_blocks() for each paragraph/bullet → get responses
-         c. Extract the "block" field from EACH response
-         d. Call append_notion_blocks() with just that section's blocks [block1, block2, block3]
-       - Repeat for all 6 sections
+    4. **NOW CREATE NOTION CONTENT ONE BLOCK AT A TIME**:
+       - For EACH block in your documentation:
+         a. Call create_notion_blocks() for one block (heading/paragraph/bullet)
+         b. Get the response with "block" field
+         c. IMMEDIATELY call append_notion_blocks() with JUST that single block
+         d. Move to next block
+       - Repeat for ALL blocks across all 6 sections
     5. Create COMPLETE documentation with ALL sections filled:
        - What This Project Does (heading + 2-3 paragraphs)
        - Key Features (heading + bullet list with 5-10 features)
@@ -184,12 +184,21 @@ def get_notion_prompt(context_info: str) -> str:
     - DO NOT use update_notion_section() - headings don't exist yet!
     - Process ONE SECTION at a time to avoid JSON errors
     
-    🚨 HOW TO HANDLE RESPONSES 🚨
-    1. create_notion_blocks('h2|Title') returns: {{"success": True, "block": {{"object":"block",...}}}}
-    2. From the response, find the "block" field - that's the ACTUAL block object
-    3. DO NOT manually type JSON! Use the exact "block" object from the response
-    4. Collect blocks for one section: [response1["block"], response2["block"], response3["block"]]
-    5. Pass to append_notion_blocks as valid JSON array
+    🚨 HOW TO HANDLE RESPONSES - ULTRA SIMPLE APPROACH 🚨
+    
+    **APPEND BLOCKS ONE AT A TIME - NO JSON ARRAYS!**
+    
+    For EACH block you create:
+    1. Action: create_notion_blocks('h2|Title')
+    2. Observe: Tool returned {{"success": True, "block": {{"object":"block","type":"heading_2",...}}}}
+    3. Action: append_notion_blocks('page_id|{{"object":"block","type":"heading_2",...}}')
+       ↑ Copy the EXACT "block" value from step 2's observe output
+    4. Observe: Block appended successfully
+    
+    Repeat for EVERY SINGLE block - heading, paragraph, bullet, etc.
+    Call append_notion_blocks ONCE PER BLOCK with just that single block's JSON.
+    
+    🚨 DO NOT try to build arrays! Append one block at a time! 🚨
     
     ⚠️ AFTER analyzing code, DO NOT call generate_notion_docs or any non-existent tools!
     ⚠️ For EMPTY pages: Do ONE SECTION at a time → create blocks → extract → append → move to next section
@@ -317,14 +326,15 @@ def get_notion_prompt(context_info: str) -> str:
     15. Observe: {{ "step": "observe", "content": "Notion integration with page creation, section updates, block formatting. Now have full picture of system capabilities." }}
     16. Write: {{ "step": "write", "content": "Analyzed complete codebase. System provides: webhook automation, AI doc generation, Notion integration, GitHub analysis. Building section 1 now..." }}
     17. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|What This Project Does" }}
-    18. Observe: {{ "step": "observe", "content": "Got block object from 'block' field in response" }}
-    19. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system automatically converts code changes into business-friendly documentation." }}
-    20. Observe: {{ "step": "observe", "content": "Got block object from 'block' field" }}
-    21. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|It monitors repositories and generates clear explanations." }}
-    22. Observe: {{ "step": "observe", "content": "Got block object from 'block' field. Now have 3 blocks for section 1." }}
-    23. Write: {{ "step": "write", "content": "Appending section 1 with 3 blocks..." }}
-    24. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|[block1_json_from_response, block2_json_from_response, block3_json_from_response]" }}
-    25. Observe: {{ "step": "observe", "content": "Section 1 added successfully. Moving to section 2..." }}
+    18. Observe: {{ "step": "observe", "content": "Got {{'block': {{'object':'block','type':'heading_2',...}}}}" }}
+    19. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|{{'object':'block','type':'heading_2',...}}" }}
+    20. Observe: {{ "step": "observe", "content": "Heading appended" }}
+    21. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "paragraph|This system converts code changes into business-friendly documentation." }}
+    22. Observe: {{ "step": "observe", "content": "Got {{'block': {{'object':'block','type':'paragraph',...}}}}" }}
+    23. Action: {{ "step": "action", "function": "append_notion_blocks", "input": "page_id|{{'object':'block','type':'paragraph',...}}" }}
+    24. Observe: {{ "step": "observe", "content": "Paragraph appended" }}
+    25-50. Continue for ALL remaining blocks (next paragraph, Key Features heading, all bullets, How It Works, etc.)
+    51. Output: {{ "step": "output", "content": "Created comprehensive documentation. All content is business-focused." }}
     26. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "h2|Key Features" }}
     27. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Automated Documentation" }}
     28. Action: {{ "step": "action", "function": "create_notion_blocks", "input": "bullet|Business-Friendly Language" }}
@@ -395,19 +405,18 @@ def get_notion_prompt(context_info: str) -> str:
     ❌ Manually typing JSON like {{"object":"block",...}}  ← Don't type JSON, use response objects!
     ❌ JSON with syntax errors: missing commas, extra spaces, mismatched brackets
     
-    ✅ CORRECT Process (section-by-section):
-       Section 1:
-       1. create_notion_blocks('h2|Title') → Response has "block" field → save it
-       2. create_notion_blocks('paragraph|Text') → Response has "block" field → save it
-       3. append_notion_blocks('page_id|[response1["block"], response2["block"]]')
-          ↑ Use EXACT block objects from responses, don't manually construct JSON!
+    ✅ CORRECT Process (one block at a time):
+       1. Action: create_notion_blocks('h2|Title')
+       2. Observe: {{"success": True, "block": {{"object":"block","type":"heading_2",...}}}}
+       3. Action: append_notion_blocks('page_id|{{"object":"block","type":"heading_2",...}}')
+          ↑ Copy EXACT block from step 2!
+       4. Observe: Appended successfully
+       5. Action: create_notion_blocks('paragraph|Text')
+       6. Observe: {{"success": True, "block": {{"object":"block","type":"paragraph",...}}}}
+       7. Action: append_notion_blocks('page_id|{{"object":"block","type":"paragraph",...}}')
+       8. Observe: Appended successfully
        
-       Section 2:
-       4. create_notion_blocks('h2|Features') → save block
-       5. create_notion_blocks('bullet|Item 1') → save block
-       6. append_notion_blocks('page_id|[blocks_from_step4_and_5]')
-       
-       Continue for all sections...
+       Continue for every single block - no arrays needed!
 
 
     REMEMBER: Your Notion documentation should be understandable by executives, managers, and non-technical stakeholders. Focus on WHAT the system does and WHY it matters, not HOW it's built. Translate all technical concepts into business outcomes and value in properly formatted Notion blocks.
