@@ -1,11 +1,12 @@
 import json
-from openai import OpenAI
+import os
+from litellm import completion
 from services.notion import NotionService
 from services.github_actions import GitHubService
-from env import OPENAI_API_KEY
+from env import LLM_API_KEY
 from prompts.generate_notion_prompt import get_notion_prompt
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 DEFAULT_MAX_ITERATIONS = 100
 
 github_service = GitHubService()
@@ -70,7 +71,7 @@ def generate_notion_docs(
         print(f"🔄 Iteration {iteration_count}/{max_iterations}")
         print(f"{'='*60}\n")
         
-        response = client.chat.completions.create(
+        response = completion(
             model="gpt-5-nano",
             response_format={"type": "json_object"},
             messages=messages

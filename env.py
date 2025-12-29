@@ -19,7 +19,7 @@ class EnvironmentConfig:
         load_dotenv()
         
         # Load and validate environment variables
-        self.OPENAI_API_KEY = self._get_required("OPENAI_API_KEY")
+        self.LLM_API_KEY = self._get_required("LLM_API_KEY")
         self.NOTION_API_KEY = self._get_required("NOTION_API_KEY")
         self.NOTION_DATABASE_ID = self._get_required("NOTION_DATABASE_ID")
         self.GITHUB_APP_ID = self._get_required("GITHUB_APP_ID")
@@ -51,7 +51,7 @@ class EnvironmentConfig:
         """String representation (hides sensitive values)"""
         return (
             f"EnvironmentConfig(\n"
-            f"  OPENAI_API_KEY={'*' * 8 if self.OPENAI_API_KEY else 'NOT SET'},\n"
+            f"  LLM_API_KEY={'*' * 8 if self.LLM_API_KEY else 'NOT SET'},\n"
             f"  NOTION_API_KEY={'*' * 8 if self.NOTION_API_KEY else 'NOT SET'},\n"
             f"  NOTION_DATABASE_ID={'*' * 8 if self.NOTION_DATABASE_ID else 'NOT SET'},\n"
             f"  GITHUB_APP_ID={self.GITHUB_APP_ID if self.GITHUB_APP_ID else 'NOT SET'},\n"
@@ -67,7 +67,7 @@ class EnvironmentConfig:
 env = EnvironmentConfig()
 
 # Export individual variables for convenience
-OPENAI_API_KEY = env.OPENAI_API_KEY
+LLM_API_KEY = env.LLM_API_KEY
 NOTION_API_KEY = env.NOTION_API_KEY
 NOTION_DATABASE_ID = env.NOTION_DATABASE_ID
 DEBUG = env.DEBUG
@@ -76,4 +76,4 @@ GITHUB_PRIVATE_KEY = env.GITHUB_PRIVATE_KEY
 ENVIRONMENT = env.ENVIRONMENT
 
 # You can now import like:
-# from env import env, OPENAI_API_KEY, NOTION_API_KEY, etc.
+# from env import env, LLM_API_KEY, NOTION_API_KEY, etc.

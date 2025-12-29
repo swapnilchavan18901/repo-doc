@@ -1,14 +1,11 @@
 import json
 import os
 import subprocess
-from openai import OpenAI
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, Request
 from generate_notion_docs import generate_notion_docs
 
 load_dotenv()
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def get_app() -> FastAPI:
@@ -17,9 +14,6 @@ def get_app() -> FastAPI:
     return app
 
 
-print("hello world")
-print("hello world")
-print("hello world")
 app = get_app()
 
 @app.post("/webhook")

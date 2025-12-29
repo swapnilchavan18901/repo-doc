@@ -1,5 +1,5 @@
 
-openai        # or openrouter sdk
+litellm
 aiohttp
 black
 fastapi
