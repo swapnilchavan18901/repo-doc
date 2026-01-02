@@ -47,22 +47,29 @@ def call_llm_streaming(messages, model="Qwen/Qwen3-Coder-30B-A3B-Instruct", temp
         raise Exception(f"API Error: {response.status_code} - {response.text}")
 
     full_content = ""
-    for line in response.iter_lines():
-        if line:
-            line = line.decode('utf-8')
-            if line.startswith('data: '):
-                data_str = line[6:]
-                if data_str == '[DONE]':
-                    break
-                try:
-                    chunk = json.loads(data_str)
-                    if 'choices' in chunk and len(chunk['choices']) > 0:
-                        delta = chunk['choices'][0].get('delta', {})
-                        content = delta.get('content', '')
-                        if content:
-                            full_content += content
-                except json.JSONDecodeError:
-                    continue
+    try:
+        for line in response.iter_lines():
+            if line:
+                line = line.decode('utf-8')
+                if line.startswith('data: '):
+                    data_str = line[6:]
+                    if data_str == '[DONE]':
+                        break
+                    try:
+                        chunk = json.loads(data_str)
+                        if 'choices' in chunk and len(chunk['choices']) > 0:
+                            delta = chunk['choices'][0].get('delta', {})
+                            content = delta.get('content', '')
+                            if content:
+                                full_content += content
+                    except json.JSONDecodeError as e:
+                        print(f"⚠️  Warning: Failed to parse chunk: {data_str[:100]}")
+                        continue
+    except Exception as e:
+        print(f"⚠️  Warning: Stream interrupted: {e}")
+    
+    if not full_content.strip():
+        raise Exception("Received empty response from LLM")
     
     return full_content
 
@@ -131,14 +138,22 @@ def generate_notion_docs(
             print(f"❌ Error during LLM call: {e}")
             break
 
-        messages.append({ "role": "assistant", "content": full_content })
-        
+        # Validate JSON completeness before parsing
         try:
             parsed_response = json.loads(full_content)
             print(f"📋 LLM Response: {json.dumps(parsed_response, indent=2)}")
-        except json.JSONDecodeError:
-            print(f"❌ Failed to parse JSON response: {full_content[:200]}...")
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to parse JSON response: {e}")
+            print(f"❌ Received content ({len(full_content)} chars): {full_content[:500]}...")
+            print(f"💡 Tip: The LLM response may be incomplete. Check streaming or prompt.")
+            
+            # Try to salvage partial JSON by checking if it's just missing closing braces
+            test_content = full_content.strip()
+            if test_content.startswith('{') and not test_content.endswith('}'):
+                print(f"⚠️  Response appears truncated (missing closing brace)")
             break
+        
+        messages.append({ "role": "assistant", "content": full_content })
 
         step = parsed_response.get("step")
 
