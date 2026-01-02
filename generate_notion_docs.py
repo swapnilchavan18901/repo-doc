@@ -70,12 +70,15 @@ def generate_notion_docs(
         print(f"\n{'='*60}")
         print(f"🔄 Iteration {iteration_count}/{max_iterations}")
         print(f"{'='*60}\n")
-        
-        response = completion(
-            model="Qwen/Qwen3-Coder-30B-A3B-Instruct",
-            response_format={"type": "json_object"},
-            messages=messages
-        )
+        try:
+            response = completion(
+                model="Qwen/Qwen3-Coder-30B-A3B-Instruct",
+                response_format={"type": "json_object"},
+                messages=messages
+            )
+        except Exception as e:
+            print(f"❌ Error during LLM completion: {e}")
+            break
 
         messages.append({ "role": "assistant", "content": response.choices[0].message.content })
         
