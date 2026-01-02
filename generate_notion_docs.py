@@ -4,6 +4,7 @@ from litellm import completion
 from services.notion import NotionService
 from services.github_actions import GitHubService
 from env import LLM_API_KEY
+import requests
 from prompts.generate_notion_prompt import get_notion_prompt
 
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
