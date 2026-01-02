@@ -70,14 +70,38 @@ def generate_notion_docs(
         print(f"\n{'='*60}")
         print(f"🔄 Iteration {iteration_count}/{max_iterations}")
         print(f"{'='*60}\n")
+        # try:
+        #     response = completion(
+        #         model="qwen.qwen3-coder-30b-a3b-v1:0",
+        #         response_format={"type": "json_object"},
+        #         messages=messages
+        #     )
+        # except Exception as e:
+        #     print(f"❌ Error during LLM completion: {e}")
+        #     break
+
         try:
-            response = completion(
-                model="qwen.qwen3-coder-30b-a3b-v1:0",
-                response_format={"type": "json_object"},
-                messages=messages
-            )
+            url = "https://platform.qubrid.com/api/v1/qubridai/chat/completions"
+            headers = {
+            "Authorization": f"Bearer {LLM_API_KEY}",
+            "Content-Type": "application/json"
+            }
+
+            data = {
+            "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+            "messages": [
+                {
+                "role": "user",
+                "content": "Write a Python function to calculate fibonacci sequence"
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 500
+            }
+
+            response = requests.post(url, headers=headers, data=json.dumps(data))
         except Exception as e:
-            print(f"❌ Error during LLM completion: {e}")
+            print(f"❌ Error during API request: {e}")
             break
 
         messages.append({ "role": "assistant", "content": response.choices[0].message.content })
