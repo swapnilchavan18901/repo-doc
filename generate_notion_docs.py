@@ -13,6 +13,58 @@ DEFAULT_MAX_ITERATIONS = 100
 github_service = GitHubService()
 notion_service = NotionService()
 
+def call_llm_streaming(messages, model="Qwen/Qwen3-Coder-30B-A3B-Instruct", temperature=0.7):
+    """
+    Call LLM API with streaming support and return the complete response.
+    
+    Args:
+        messages: List of message dictionaries with 'role' and 'content'
+        model: Model identifier string
+        temperature: Temperature parameter for response randomness
+        
+    Returns:
+        str: Complete response content from the LLM
+        
+    Raises:
+        Exception: If API call fails
+    """
+    url = "https://platform.qubrid.com/api/v1/qubridai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {LLM_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "stream": True
+    }
+
+    response = requests.post(url, headers=headers, data=json.dumps(data), stream=True)
+    
+    if response.status_code != 200:
+        raise Exception(f"API Error: {response.status_code} - {response.text}")
+
+    full_content = ""
+    for line in response.iter_lines():
+        if line:
+            line = line.decode('utf-8')
+            if line.startswith('data: '):
+                data_str = line[6:]
+                if data_str == '[DONE]':
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                    if 'choices' in chunk and len(chunk['choices']) > 0:
+                        delta = chunk['choices'][0].get('delta', {})
+                        content = delta.get('content', '')
+                        if content:
+                            full_content += content
+                except json.JSONDecodeError:
+                    continue
+    
+    return full_content
 
 available_tools = {
     "get_github_diff": github_service.get_diff,
@@ -71,49 +123,21 @@ def generate_notion_docs(
         print(f"\n{'='*60}")
         print(f"🔄 Iteration {iteration_count}/{max_iterations}")
         print(f"{'='*60}\n")
-        # try:
-        #     response = completion(
-        #         model="qwen.qwen3-coder-30b-a3b-v1:0",
-        #         response_format={"type": "json_object"},
-        #         messages=messages
-        #     )
-        # except Exception as e:
-        #     print(f"❌ Error during LLM completion: {e}")
-        #     break
 
         try:
-            url = "https://platform.qubrid.com/api/v1/qubridai/chat/completions"
-            headers = {
-            "Authorization": f"Bearer {LLM_API_KEY}",
-            "Content-Type": "application/json"
-            }
-
-            data = {
-            "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
-            "messages": [
-                {
-                "role": "user",
-                "content": "Write a Python function to calculate fibonacci sequence"
-                }
-            ],
-            "temperature": 0.7,
-            "max_tokens": 500
-            }
-
-            response = requests.post(url, headers=headers, data=json.dumps(data))
-            print(f"API Response Status: {response.status_code}")
-            print(f"API Response Body: {response.text}")
+            full_content = call_llm_streaming(messages)
+            print(f"✅ Received {len(full_content)} characters from LLM")
         except Exception as e:
-            print(f"❌ Error during API request: {e}")
+            print(f"❌ Error during LLM call: {e}")
             break
 
-        messages.append({ "role": "assistant", "content": response.choices[0].message.content })
+        messages.append({ "role": "assistant", "content": full_content })
         
         try:
-            parsed_response = json.loads(response.choices[0].message.content)
+            parsed_response = json.loads(full_content)
             print(f"📋 LLM Response: {json.dumps(parsed_response, indent=2)}")
         except json.JSONDecodeError:
-            print(f"❌: Failed to parse JSON response: {response.choices[0].message.content}")
+            print(f"❌ Failed to parse JSON response: {full_content[:200]}...")
             break
 
         step = parsed_response.get("step")
