@@ -4,7 +4,6 @@ from litellm import completion
 from services.notion import NotionService
 from services.github_actions import GitHubService
 from env import LLM_API_KEY
-import requests
 from prompts.generate_notion_prompt import get_notion_prompt
 
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
@@ -13,65 +12,21 @@ DEFAULT_MAX_ITERATIONS = 100
 github_service = GitHubService()
 notion_service = NotionService()
 
-def call_llm_streaming(messages, model="Qwen/Qwen3-Coder-30B-A3B-Instruct", temperature=0.7):
-    """
-    Call LLM API with streaming support and return the complete response.
-    
-    Args:
-        messages: List of message dictionaries with 'role' and 'content'
-        model: Model identifier string
-        temperature: Temperature parameter for response randomness
-        
-    Returns:
-        str: Complete response content from the LLM
-        
-    Raises:
-        Exception: If API call fails
-    """
-    url = "https://platform.qubrid.com/api/v1/qubridai/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {LLM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "stream": True
-    }
-
-    response = requests.post(url, headers=headers, data=json.dumps(data), stream=True)
-    
-    if response.status_code != 200:
-        raise Exception(f"API Error: {response.status_code} - {response.text}")
-
-    full_content = ""
+def call_llm_streaming(messages):
     try:
-        for line in response.iter_lines():
-            if line:
-                line = line.decode('utf-8')
-                if line.startswith('data: '):
-                    data_str = line[6:]
-                    if data_str == '[DONE]':
-                        break
-                    try:
-                        chunk = json.loads(data_str)
-                        if 'choices' in chunk and len(chunk['choices']) > 0:
-                            delta = chunk['choices'][0].get('delta', {})
-                            content = delta.get('content', '')
-                            if content:
-                                full_content += content
-                    except json.JSONDecodeError as e:
-                        print(f"⚠️  Warning: Failed to parse chunk: {data_str[:100]}")
-                        continue
+        response = completion(
+            model="gpt-4.1",
+            messages=messages,
+        )
+        
+        full_content = response.choices[0].message.content
+        
+        if not full_content or not full_content.strip():
+            raise Exception("Received empty response from LLM")
+        
+        return full_content
     except Exception as e:
-        print(f"⚠️  Warning: Stream interrupted: {e}")
-    
-    if not full_content.strip():
-        raise Exception("Received empty response from LLM")
-    
-    return full_content
+        raise Exception(f"LLM API Error: {e}")
 
 available_tools = {
     "get_github_diff": github_service.get_diff,
@@ -143,45 +98,11 @@ def generate_notion_docs(
             print(f"❌ Error during LLM call: {e}")
             break
 
-        # Validate JSON completeness before parsing
-        # Handle case where LLM outputs multiple JSON objects (only use first one)
-        try:
-            # Try to parse as single JSON first
-            parsed_response = json.loads(full_content)
-            print(f"📋 LLM Response: {json.dumps(parsed_response, indent=2)}")
-        except json.JSONDecodeError as e:
-            # Check if error is due to multiple JSON objects ("Extra data" error)
-            if "Extra data" in str(e):
-                print(f"⚠️  LLM output multiple JSON objects. Extracting first one only...")
-                # Extract just the first JSON object
-                try:
-                    # Find the end of the first complete JSON object
-                    decoder = json.JSONDecoder()
-                    parsed_response, end_idx = decoder.raw_decode(full_content.strip())
-                    remaining = full_content[end_idx:].strip()
-                    print(f"📋 First JSON (using this): {json.dumps(parsed_response, indent=2)}")
-                    print(f"⚠️  Ignored remaining content ({len(remaining)} chars): {remaining[:200]}...")
-                    print(f"💡 Reminder to LLM: Output ONE JSON per turn, not multiple!")
-                    
-                    # Log this for the LLM to see in next turn
-                    full_content = json.dumps(parsed_response)  # Use only first JSON for history
-                except Exception as parse_error:
-                    print(f"❌ Could not extract first JSON: {parse_error}")
-                    print(f"❌ Content: {full_content[:500]}...")
-                    break
-            else:
-                # Other JSON parsing error (incomplete, malformed, etc.)
-                print(f"❌ Failed to parse JSON response: {e}")
-                print(f"❌ Received content ({len(full_content)} chars): {full_content[:500]}...")
-                print(f"💡 Tip: The LLM response may be incomplete. Check streaming or prompt.")
-                
-                # Try to salvage partial JSON by checking if it's just missing closing braces
-                test_content = full_content.strip()
-                if test_content.startswith('{') and not test_content.endswith('}'):
-                    print(f"⚠️  Response appears truncated (missing closing brace)")
-                break
+        parsed_response = json.loads(full_content)
+        print(f"📋 LLM Response: {json.dumps(parsed_response, indent=2)}")
         
         messages.append({ "role": "assistant", "content": full_content })
+
 
         step = parsed_response.get("step")
 
