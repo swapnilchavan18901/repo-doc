@@ -72,7 +72,7 @@ def generate_notion_docs(
         print(f"{'='*60}\n")
         
         response = completion(
-            model="gpt-5-nano",
+            model="Qwen/Qwen3-Coder-30B-A3B-Instruct",
             response_format={"type": "json_object"},
             messages=messages
         )
