@@ -8,7 +8,6 @@ from prompts.generate_notion_prompt import get_notion_prompt
 
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 DEFAULT_MAX_ITERATIONS = 100
-
 github_service = GitHubService()
 notion_service = NotionService()
 
