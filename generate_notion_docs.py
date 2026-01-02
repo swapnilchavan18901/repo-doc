@@ -134,24 +134,52 @@ def generate_notion_docs(
         try:
             full_content = call_llm_streaming(messages)
             print(f"✅ Received {len(full_content)} characters from LLM")
+            print(f"\n{'='*60}")
+            print("RAW LLM OUTPUT (for debugging):")
+            print(f"{'='*60}")
+            print(full_content)
+            print(f"{'='*60}\n")
         except Exception as e:
             print(f"❌ Error during LLM call: {e}")
             break
 
         # Validate JSON completeness before parsing
+        # Handle case where LLM outputs multiple JSON objects (only use first one)
         try:
+            # Try to parse as single JSON first
             parsed_response = json.loads(full_content)
             print(f"📋 LLM Response: {json.dumps(parsed_response, indent=2)}")
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse JSON response: {e}")
-            print(f"❌ Received content ({len(full_content)} chars): {full_content[:500]}...")
-            print(f"💡 Tip: The LLM response may be incomplete. Check streaming or prompt.")
-            
-            # Try to salvage partial JSON by checking if it's just missing closing braces
-            test_content = full_content.strip()
-            if test_content.startswith('{') and not test_content.endswith('}'):
-                print(f"⚠️  Response appears truncated (missing closing brace)")
-            break
+            # Check if error is due to multiple JSON objects ("Extra data" error)
+            if "Extra data" in str(e):
+                print(f"⚠️  LLM output multiple JSON objects. Extracting first one only...")
+                # Extract just the first JSON object
+                try:
+                    # Find the end of the first complete JSON object
+                    decoder = json.JSONDecoder()
+                    parsed_response, end_idx = decoder.raw_decode(full_content.strip())
+                    remaining = full_content[end_idx:].strip()
+                    print(f"📋 First JSON (using this): {json.dumps(parsed_response, indent=2)}")
+                    print(f"⚠️  Ignored remaining content ({len(remaining)} chars): {remaining[:200]}...")
+                    print(f"💡 Reminder to LLM: Output ONE JSON per turn, not multiple!")
+                    
+                    # Log this for the LLM to see in next turn
+                    full_content = json.dumps(parsed_response)  # Use only first JSON for history
+                except Exception as parse_error:
+                    print(f"❌ Could not extract first JSON: {parse_error}")
+                    print(f"❌ Content: {full_content[:500]}...")
+                    break
+            else:
+                # Other JSON parsing error (incomplete, malformed, etc.)
+                print(f"❌ Failed to parse JSON response: {e}")
+                print(f"❌ Received content ({len(full_content)} chars): {full_content[:500]}...")
+                print(f"💡 Tip: The LLM response may be incomplete. Check streaming or prompt.")
+                
+                # Try to salvage partial JSON by checking if it's just missing closing braces
+                test_content = full_content.strip()
+                if test_content.startswith('{') and not test_content.endswith('}'):
+                    print(f"⚠️  Response appears truncated (missing closing brace)")
+                break
         
         messages.append({ "role": "assistant", "content": full_content })
 
