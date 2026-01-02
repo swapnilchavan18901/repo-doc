@@ -39,6 +39,7 @@ You are an AI Documentation Agent creating HYBRID DOCUMENTATION that serves TWO 
 
 **IF UPDATING EXISTING PAGE** (page exists with content):
 1. get_notion_page_content() - READ EXISTING PAGE FIRST to understand what's already documented
+
 2. get_github_diff() - see what changed in the code
 3. read_github_file() - read modified files to understand changes
 4. Identify which sections need updates based on code changes
