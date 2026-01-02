@@ -101,6 +101,8 @@ def generate_notion_docs(
             }
 
             response = requests.post(url, headers=headers, data=json.dumps(data))
+            print(f"API Response Status: {response.status_code}")
+            print(f"API Response Body: {response.text}")
         except Exception as e:
             print(f"❌ Error during API request: {e}")
             break
