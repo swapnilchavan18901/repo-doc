@@ -142,6 +142,68 @@ class NotionService:
             "title_key": title_key,
             "properties": list(data["properties"].keys())
         }
+    
+    def query_database_pages(self, input_str: str) -> Dict[str, Any]:
+        """Query pages from database. Format: 'database_id' or 'database_id|page_size'"""
+        try:
+            parts = input_str.split('|')
+            database_id = parts[0].strip()
+            page_size = int(parts[1]) if len(parts) > 1 else 10
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
+        
+        url = f"{self.base_url}/databases/{database_id}/query"
+        
+        payload = {
+            "page_size": page_size,
+            "sorts": [
+                {
+                    "timestamp": "created_time",
+                    "direction": "descending"
+                }
+            ]
+        }
+        
+        res = requests.post(url, headers=self.headers, json=payload)
+        
+        print("QUERY DATABASE STATUS:", res.status_code)
+        print("QUERY DATABASE RAW:", res.text)
+        
+        if res.status_code != 200:
+            return {
+                "success": False,
+                "error": res.text
+            }
+        
+        data = res.json()
+        pages = []
+        
+        for page in data.get("results", []):
+            page_id = page["id"]
+            title = ""
+            
+            # Extract title from properties
+            if page.get("properties"):
+                for prop_name, prop_value in page["properties"].items():
+                    if prop_value.get("type") == "title":
+                        title_array = prop_value.get("title", [])
+                        if title_array:
+                            title = title_array[0].get("text", {}).get("content", "")
+                            break
+            
+            pages.append({
+                "page_id": page_id,
+                "title": title,
+                "url": page.get("url", ""),
+                "created_time": page.get("created_time", "")
+            })
+        
+        return {
+            "success": True,
+            "database_id": database_id,
+            "count": len(pages),
+            "pages": pages
+        }
 
     def create_doc_page(self, input_str: str) -> Dict[str, Any]:
         """Create documentation page. Format: 'database_id|page_title'"""

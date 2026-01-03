@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from litellm import completion
 from services.notion import NotionService
 from services.github_actions import GitHubService
@@ -12,46 +11,36 @@ DEFAULT_MAX_ITERATIONS = 100
 github_service = GitHubService()
 notion_service = NotionService()
 
-def find_created_page_id(database_id, repo_name=None):
+def get_latest_page_from_database(database_id):
     """
-    Find the most recently created page in the database, optionally matching repo name.
+    Query the database to get the most recently created page.
     
     Args:
-        database_id: The Notion database ID to search in
-        repo_name: Optional repository name to match in page title
+        database_id: The Notion database ID
         
     Returns:
         str: Page ID if found, None otherwise
     """
-    try:
-        # Get all databases to verify the database exists
-        db_result = notion_service.get_all_databases("")
-        if not db_result.get("success"):
-            print(f"❌ Failed to get databases: {db_result}")
-            return None
-        
-        # Search for pages in the database by querying recent pages
-        # We'll search for common documentation terms or repo name
-        search_terms = ["Documentation", "Repo Documentation"]
-        if repo_name:
-            # Extract repo name from full name (e.g., "owner/repo" -> "repo")
-            repo_short = repo_name.split('/')[-1] if '/' in repo_name else repo_name
-            search_terms.insert(0, repo_short)
-            search_terms.insert(0, f"{repo_short} Documentation")
-        
-        for term in search_terms:
-            search_result = notion_service.search_page_by_title(term)
-            if search_result.get("success") and search_result.get("found"):
-                page_id = search_result.get("page_id")
-                if page_id:
-                    print(f"📍 Found page by title search: {term} -> {page_id}")
-                    return page_id
-        
-        print(f"⚠️ Could not find created page in database {database_id}")
+    if not database_id:
         return None
+    
+    try:
+        # Query database for pages, sorted by creation time (most recent first)
+        result = notion_service.query_database_pages(f"{database_id}|1")
         
+        if result.get("success") and result.get("pages"):
+            page = result["pages"][0]  # Get the most recent page
+            page_id = page.get("page_id")
+            print(f"📍 Found most recent page in database: {page_id}")
+            print(f"   Title: {page.get('title')}")
+            print(f"   Created: {page.get('created_time')}")
+            return page_id
+        else:
+            print(f"⚠️ No pages found in database {database_id}")
+            return None
+            
     except Exception as e:
-        print(f"❌ Error finding created page: {e}")
+        print(f"❌ Error querying database: {e}")
         return None
 
 def call_llm_streaming(messages):
@@ -208,10 +197,8 @@ def generate_notion_docs(
     # Try to find the created page if not provided
     review_page_id = page_id
     if not review_page_id and database_id:
-        # Use Notion search to find the created page
-        extracted_id = find_created_page_id(database_id, repo_full_name)
-        if extracted_id:
-            review_page_id = extracted_id
+        # Query database to get the most recently created page
+        review_page_id = get_latest_page_from_database(database_id)
     
     # Run quality review if we have a page_id (either provided or extracted)
     if review_page_id:
