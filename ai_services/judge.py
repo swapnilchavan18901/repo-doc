@@ -95,6 +95,7 @@ def judge_notion_docs(
         try:
             full_content = call_llm_streaming(messages)
             print(f"✅ Received {len(full_content)} characters from Judge LLM")
+            
             print(f"\n{'='*60}")
             print("JUDGE OUTPUT:")
             print(f"{'='*60}")
