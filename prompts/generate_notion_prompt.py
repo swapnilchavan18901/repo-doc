@@ -702,6 +702,7 @@ Turn 20: {{ "step": "action", "function": "add_block_to_page", "input": "page456
 Turn 21: {{ "step": "action", "function": "add_numbered_batch", "input": "page456|Clone the repository and navigate to project directory##Install dependencies: pip install -r requirements.txt##Set up environment variables: OPENAI_API_KEY, NOTION_API_KEY, GITHUB_APP_ID, GITHUB_PRIVATE_KEY##Start the server: fastapi dev app.py" }}
 → System responds: {{"success": true, "blocks_added": 4, "message": "Added 4 numbered items to page"}}
 
+
 Turn 22: {{ "step": "action", "function": "add_block_to_page", "input": "page456|code|# Expected output:\\nINFO:     Uvicorn running on http://127.0.0.1:8000\\nINFO:     Application startup complete.|bash" }}
 
 Turn 23: {{ "step": "action", "function": "add_block_to_page", "input": "page456|callout|Verify the server is running by accessing http://127.0.0.1:8000/health in your browser|✅" }}
