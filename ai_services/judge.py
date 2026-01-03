@@ -13,7 +13,7 @@ notion_service = NotionService()
 def call_llm_streaming(messages):
     try:
         response = completion(
-            model="gpt-4o",
+            model="gpt-5-nano",
             messages=messages,
         )
         
