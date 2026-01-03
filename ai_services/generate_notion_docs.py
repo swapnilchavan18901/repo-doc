@@ -73,6 +73,9 @@ available_tools = {
     "append_notion_blocks": notion_service.append_blocks,
     "create_notion_blocks": notion_service.create_blocks,
     "add_block_to_page": notion_service.add_block_to_page,
+    "add_bullets_batch": notion_service.add_bullets_batch,
+    "add_numbered_batch": notion_service.add_numbered_batch,
+    "add_paragraphs_batch": notion_service.add_paragraphs_batch,
     "insert_blocks_after_text": notion_service.insert_between_by_text,
     "insert_blocks_after_block_id": notion_service.insert_after_block,
 }

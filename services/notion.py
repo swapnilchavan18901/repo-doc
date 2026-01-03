@@ -537,6 +537,105 @@ class NotionService:
                 return append_result
         except Exception as e:
             return {"success": False, "error": str(e), "input": input_str}
+    
+    def add_bullets_batch(self, input_str: str) -> Dict[str, Any]:
+        """Add multiple bullet points at once. Format: 'page_id|bullet1##bullet2##bullet3' (use ## as separator)"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'page_id|bullet1##bullet2##bullet3'"}
+            
+            page_id, bullets_str = input_str.split('|', 1)
+            page_id = page_id.strip()
+            
+            # Split by ## separator
+            bullet_texts = [b.strip() for b in bullets_str.split('##') if b.strip()]
+            
+            if not bullet_texts:
+                return {"success": False, "error": "No bullet points provided"}
+            
+            # Create all bullet blocks
+            blocks = [self.bullet(text) for text in bullet_texts]
+            
+            # Send all at once
+            blocks_json = json.dumps(blocks)
+            result = self.append_blocks(f"{page_id}|{blocks_json}")
+            
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "message": f"Added {len(bullet_texts)} bullet points to page",
+                    "blocks_added": len(bullet_texts)
+                }
+            else:
+                return result
+        except Exception as e:
+            return {"success": False, "error": str(e), "input": input_str}
+    
+    def add_numbered_batch(self, input_str: str) -> Dict[str, Any]:
+        """Add multiple numbered items at once. Format: 'page_id|item1##item2##item3' (use ## as separator)"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'page_id|item1##item2##item3'"}
+            
+            page_id, items_str = input_str.split('|', 1)
+            page_id = page_id.strip()
+            
+            # Split by ## separator
+            item_texts = [i.strip() for i in items_str.split('##') if i.strip()]
+            
+            if not item_texts:
+                return {"success": False, "error": "No numbered items provided"}
+            
+            # Create all numbered blocks
+            blocks = [self.numbered(text) for text in item_texts]
+            
+            # Send all at once
+            blocks_json = json.dumps(blocks)
+            result = self.append_blocks(f"{page_id}|{blocks_json}")
+            
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "message": f"Added {len(item_texts)} numbered items to page",
+                    "blocks_added": len(item_texts)
+                }
+            else:
+                return result
+        except Exception as e:
+            return {"success": False, "error": str(e), "input": input_str}
+    
+    def add_paragraphs_batch(self, input_str: str) -> Dict[str, Any]:
+        """Add multiple paragraphs at once. Format: 'page_id|para1##para2##para3' (use ## as separator)"""
+        try:
+            if '|' not in input_str:
+                return {"success": False, "error": "Input must be in format 'page_id|para1##para2##para3'"}
+            
+            page_id, paras_str = input_str.split('|', 1)
+            page_id = page_id.strip()
+            
+            # Split by ## separator
+            para_texts = [p.strip() for p in paras_str.split('##') if p.strip()]
+            
+            if not para_texts:
+                return {"success": False, "error": "No paragraphs provided"}
+            
+            # Create all paragraph blocks
+            blocks = [self.paragraph(text) for text in para_texts]
+            
+            # Send all at once
+            blocks_json = json.dumps(blocks)
+            result = self.append_blocks(f"{page_id}|{blocks_json}")
+            
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "message": f"Added {len(para_texts)} paragraphs to page",
+                    "blocks_added": len(para_texts)
+                }
+            else:
+                return result
+        except Exception as e:
+            return {"success": False, "error": str(e), "input": input_str}
 
     def insert_after_block(self, input_str: str) -> Dict[str, Any]:
         """Insert blocks after block ID. Format: 'block_id|blocks_json'"""
