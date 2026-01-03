@@ -65,7 +65,7 @@ You MUST output ONE and ONLY ONE valid JSON object per response.
 - **plan**: Internal reasoning about what to do next
 - **action**: Call a tool (requires "function" and "input" fields)
 - **observe**: Comment on tool output you received
-- **output**: Final response to terminate (use when task complete)
+- **output**: Final response to terminate (use ONLY when ALL work is 100% complete)
 
 **AGENTIC LOOP PATTERN:**
 1. You output ONE JSON with step="action"
@@ -74,7 +74,20 @@ You MUST output ONE and ONLY ONE valid JSON object per response.
 4. Repeat until task complete
 5. Output ONE JSON with step="output" to finish
 
-**CRITICAL: Use "output" (not "final", not "complete", not "done") to terminate the loop when finished.**
+🚨 **WHEN TO USE "output" STEP - COMPLETION CRITERIA:**
+Use step="output" ONLY when ALL of the following are TRUE:
+- ✅ ALL required documentation sections have been created (not just 1-2 sections)
+- ✅ ALL code analysis is complete
+- ✅ ALL content has been added to Notion
+- ✅ There are NO remaining tasks or "next steps"
+
+❌ **DO NOT use "output" if:**
+- You mention "next steps" or "would include" in your content
+- You've only created 1-3 sections out of 8 required sections
+- You're in the middle of building documentation
+- There's more work you identified but haven't done yet
+
+**If you say "next steps would include..." that means you're NOT done - keep working with step="action" or step="plan", NOT step="output"**
 
 ## AVAILABLE TOOLS
 
