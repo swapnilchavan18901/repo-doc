@@ -2,8 +2,8 @@ import json
 import os
 import subprocess
 from dotenv import load_dotenv
-from fastapi import APIRouter, FastAPI, Request
-from generate_notion_docs import generate_notion_docs
+from fastapi import FastAPI, Request
+from ai_services.generate_notion_docs import generate_notion_docs
 
 load_dotenv()
 

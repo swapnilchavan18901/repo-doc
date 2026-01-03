@@ -5,7 +5,7 @@ from services.notion import NotionService
 from services.github_actions import GitHubService
 from env import LLM_API_KEY
 from prompts.generate_notion_prompt import get_notion_prompt
-
+from ai_services.judge import judge_notion_docs
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 DEFAULT_MAX_ITERATIONS = 100
 github_service = GitHubService()
@@ -158,13 +158,43 @@ def generate_notion_docs(
             "iterations": iteration_count
         }
 
-    return {
+    result = {
         "content": parsed_response.get("content"),
         "iterations": iteration_count
     }
+    
+    # Run quality review if we have a page_id
+    if page_id:
+        print(f"\n{'='*60}")
+        print(f"🔍 INITIATING QUALITY REVIEW")
+        print(f"{'='*60}\n")
+        
+        try:
+            # Build context summary for judge
+            judge_context = f"GENERATED DOCUMENTATION SUMMARY:\n"
+            judge_context += f"- Page ID: {page_id}\n"
+            judge_context += f"- Generation iterations: {iteration_count}\n"
+            if repo_full_name:
+                judge_context += f"- Source: {repo_full_name} ({before_sha[:7]}...{after_sha[:7]})\n"
+            judge_context += f"\nDocumentation was just generated/updated. Review and fix quality issues.\n"
+            
+            judge_result = judge_notion_docs(
+                page_id=page_id,
+                generation_context=judge_context,
+                max_iterations=50
+            )
+            
+            result["judge_result"] = judge_result
+            print(f"\n{'='*60}")
+            print(f"✅ QUALITY REVIEW COMPLETED")
+            print(f"📊 Judge completed in {judge_result.get('iterations')} iterations")
+            print(f"{'='*60}\n")
+                
+        except Exception as e:
+            print(f"\n❌ Quality review failed: {e}")
+            result["judge_error"] = str(e)
+    else:
+        print(f"\n⚠️  Quality review skipped: No page_id available")
+        result["judge_skipped"] = "No page_id found for review"
 
-if __name__ == "__main__":
-    # You can specify database_id for new page or page_id for existing page
-    # Example: generate_notion_docs(database_id="your-database-id")
-    # Example: generate_notion_docs(page_id="your-existing-page-id")
-    generate_notion_docs()
+    return result
