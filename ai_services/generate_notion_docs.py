@@ -205,7 +205,6 @@ def generate_notion_docs(
         "content": parsed_response.get("content"),
         "iterations": iteration_count
     }
-    
     # Try to find the created page if not provided
     review_page_id = page_id
     if not review_page_id and database_id:
