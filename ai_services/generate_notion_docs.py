@@ -226,6 +226,7 @@ def generate_notion_docs(
             print(f"\n{'='*60}")
             print(f"✅ QUALITY REVIEW COMPLETED")
             print(f"📊 Judge completed in {judge_result.get('iterations')} iterations")
+            
             print(f"{'='*60}\n")
                 
         except Exception as e:
