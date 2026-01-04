@@ -668,7 +668,6 @@ async def generate_notion_docs(
             if repo_full_name:
                 judge_context += f"- Source: {repo_full_name}\n"
             judge_context += f"\nReview and fix quality issues.\n"
-            
             # Note: judge_notion_docs is synchronous, so we don't await it
             judge_result = judge_notion_docs(
                 page_id=review_page_id,
