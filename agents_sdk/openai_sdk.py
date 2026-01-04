@@ -561,6 +561,7 @@ async def generate_notion_docs(
         system_prompt = get_openai_agent_prompt(context_info)
         print(f"📋 System prompt created: {len(system_prompt)} characters")
         
+        
         try:
             agent = Agent(
                 name="Documentation Generator",
