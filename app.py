@@ -9,7 +9,6 @@ from env import NOTION_DATABASE_ID
 
 load_dotenv()
 
-
 def get_app() -> FastAPI:
     """Creates and returns FastAPI app with routes attached"""
     app = FastAPI()
