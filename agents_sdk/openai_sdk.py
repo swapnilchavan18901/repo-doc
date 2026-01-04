@@ -626,6 +626,7 @@ async def generate_notion_docs(
                 print(f"❌ Agent execution failed: {error_str}")
         
         print(f"\n{'='*60}")
+        
         print(f"✅ AGENT COMPLETED")
         print(f"{'='*60}\n")
         
