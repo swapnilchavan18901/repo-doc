@@ -2,6 +2,7 @@
 import json
 import os
 import asyncio
+import time
 from typing import Dict, List, Any, Optional, TypedDict
 from agents import Agent, function_tool, Runner
 from services.github_actions import GitHubService
@@ -590,26 +591,37 @@ async def generate_notion_docs(
         print(f"🚀 RUNNING OPENAI AGENT")
         print(f"{'='*60}\n")
         
-        # Run agent asynchronously
+        # Run agent asynchronously with retry logic for rate limits
         # Since Runner.run_sync() can't be called in an event loop,
         # we run it in a separate thread using asyncio.to_thread()
-        try:
-            print(f"🔄 Running agent in thread pool to avoid event loop conflict...")
-            # Use max_iterations for max_turns, default to 50 if not provided
-            max_turns_value = 100
-            print(f"⚙️  Max turns set to: {max_turns_value}")
-            agent_result = await asyncio.to_thread(
-                Runner.run_sync, 
-                agent, 
-                task,
-                max_turns=max_turns_value
-            )
-            print(f"✅ Agent execution completed")
-            print(f"📊 Result type: {type(agent_result)}")
-            print(f"📊 Result attributes: {dir(agent_result)}")
-        except Exception as run_error:
-            print(f"❌ Agent execution failed: {run_error}")
-            raise
+        max_turns_value = 100
+        print(f"⚙️  Max turns set to: {max_turns_value}")
+        
+        # Retry configuration for rate limits
+        max_retries = 5
+        base_delay = 5  # Start with 5 seconds
+        retry_count = 0
+        
+        while retry_count <= max_retries:
+            try:
+                if retry_count > 0:
+                    print(f"🔄 Retry attempt {retry_count}/{max_retries} after rate limit...")
+                
+                print(f"🔄 Running agent in thread pool to avoid event loop conflict...")
+                agent_result = await asyncio.to_thread(
+                    Runner.run_sync, 
+                    agent, 
+                    task,
+                    max_turns=max_turns_value
+                )
+                print(f"✅ Agent execution completed")
+                print(f"📊 Result type: {type(agent_result)}")
+                print(f"📊 Result attributes: {dir(agent_result)}")
+                break  # Success, exit retry loop
+                
+            except Exception as run_error:
+                error_str = str(run_error)
+                print(f"❌ Agent execution failed: {error_str}")
         
         print(f"\n{'='*60}")
         print(f"✅ AGENT COMPLETED")
