@@ -617,6 +617,7 @@ async def generate_notion_docs(
                     max_turns=max_turns_value
                 )
                 print(f"✅ Agent execution completed")
+                
                 print(f"📊 Result type: {type(agent_result)}")
                 print(f"📊 Result attributes: {dir(agent_result)}")
                 break  # Success, exit retry loop
