@@ -5,6 +5,7 @@ import asyncio
 import time
 from typing import Dict, List, Any, Optional, TypedDict
 from agents import Agent, function_tool, Runner
+from services.github_actions import GitHubService
 from services.notion import NotionService
 from env import LLM_API_KEY
 
@@ -12,6 +13,7 @@ from env import LLM_API_KEY
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 
 # Initialize services
+github_service = GitHubService()
 notion_service = NotionService()
 
 
@@ -21,6 +23,97 @@ class ContentBlock(TypedDict, total=False):
     type: str
     text: str
     extra: str
+
+
+# ============================================================================
+# GITHUB TOOLS
+# ============================================================================
+
+@function_tool
+def get_github_diff(repo_full_name: str, before_sha: str, after_sha: str) -> Dict[str, Any]:
+    """
+    Get the diff between two commits showing all file changes with patches.
+    
+    Args:
+        repo_full_name: Repository full name in format 'owner/repo'
+        before_sha: The commit SHA before changes
+        after_sha: The commit SHA after changes
+        
+    Returns:
+        Dictionary with success status, files changed, and diff details
+    """
+    input_str = f"{repo_full_name}|{before_sha}|{after_sha}"
+    return github_service.get_diff(input_str)
+
+
+@function_tool
+def get_github_file_tree(repo_full_name: str, sha: str, path: str = "") -> Dict[str, Any]:
+    """
+    Get the file tree/directory structure of the repository (one level only).
+    
+    Args:
+        repo_full_name: Repository full name in format 'owner/repo'
+        sha: Commit SHA or branch name (e.g., 'main')
+        path: Directory path to list (empty string for root)
+        
+    Returns:
+        Dictionary with success status and directory contents
+    """
+    input_str = f"{repo_full_name}|{sha}|{path}"
+    return github_service.get_file_tree(input_str)
+
+
+@function_tool
+def read_github_file(repo_full_name: str, filepath: str, sha: str = "main") -> Dict[str, Any]:
+    """
+    Read the complete content of a specific file from GitHub repository.
+    
+    Args:
+        repo_full_name: Repository full name in format 'owner/repo'
+        filepath: Path to the file in the repository
+        sha: Commit SHA or branch name (defaults to 'main')
+        
+    Returns:
+        Dictionary with success status and file content
+    """
+    input_str = f"{repo_full_name}|{filepath}|{sha}"
+    return github_service.read_file(input_str)
+
+
+@function_tool
+def search_github_code(repo_full_name: str, query: str, max_results: int = 10) -> Dict[str, Any]:
+    """
+    Search for code in the repository using keywords or patterns.
+    
+    Args:
+        repo_full_name: Repository full name in format 'owner/repo'
+        query: Search query (keywords, function names, class names, etc.)
+        max_results: Maximum number of results to return (default 10)
+        
+    Returns:
+        Dictionary with success status and search results
+    """
+    input_str = f"{repo_full_name}|{query}|{max_results}"
+    return github_service.search_code(input_str)
+
+
+@function_tool
+def list_all_github_files(repo_full_name: str, sha: str , path: str = "") -> Dict[str, Any]:
+    """
+    Recursively list ALL files in the repository (flat list, all directories).
+    Best for understanding complete project structure.
+    
+    Args:
+        repo_full_name: Repository full name in format 'owner/repo'
+        sha: Commit SHA or branch name (defaults to 'main')
+        path: Starting path (empty string for entire repo)
+        
+    Returns:
+        Dictionary with success status and complete file listing
+    """
+    input_str = f"{repo_full_name}|{sha}|{path}"
+    return github_service.list_all_files_recursive(input_str)
+
 
 # ============================================================================
 # NOTION TOOLS
@@ -388,6 +481,12 @@ def add_mixed_blocks(page_id: str, blocks: List[ContentBlock]) -> Dict[str, Any]
 
 # Collect all tools
 ALL_TOOLS = [
+    # GitHub tools
+    get_github_diff,
+    get_github_file_tree,
+    read_github_file,
+    search_github_code,
+    list_all_github_files,
     # Notion tools
     get_notion_databases,
     search_page_by_title,
