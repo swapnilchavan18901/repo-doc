@@ -42,11 +42,12 @@ async def generate_notion_docs_endpoint(request: Request):
         #     before_sha=before_sha,
         #     after_sha=after_sha
         # )
+
         result = generate_notion_docs(
                  repo_full_name=repo_full_name,
                  before_sha=before_sha,
-                 after_sha=after_sha
-                 NOTION_DATABASE_ID
+                 after_sha=after_sha,
+                 database_id=NOTION_DATABASE_ID
                 )
 
         

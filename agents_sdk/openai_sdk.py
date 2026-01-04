@@ -1,7 +1,7 @@
 
 import json
 import os
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TypedDict
 from agents import Agent, function_tool, Runner
 from services.github_actions import GitHubService
 from services.notion import NotionService
@@ -13,6 +13,14 @@ os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 # Initialize services
 github_service = GitHubService()
 notion_service = NotionService()
+
+
+# TypedDict for content blocks structure
+class ContentBlock(TypedDict, total=False):
+    """Structure for Notion content blocks"""
+    type: str
+    text: str
+    extra: str
 
 
 # ============================================================================
@@ -265,7 +273,7 @@ def add_paragraphs_batch(page_id: str, paragraphs: List[str]) -> Dict[str, Any]:
 def update_notion_section(
     page_id: str,
     heading_text: str,
-    content_blocks: List[Dict[str, str]]
+    content_blocks: List[ContentBlock]
 ) -> Dict[str, Any]:
     """
     Replace all content under a specific heading with new blocks (mixed types supported).
@@ -328,7 +336,7 @@ def update_notion_section(
 def insert_blocks_after_text(
     page_id: str,
     after_text: str,
-    blocks: List[Dict[str, str]]
+    blocks: List[ContentBlock]
 ) -> Dict[str, Any]:
     """
     Insert blocks after a specific text block (searches by exact text match).
@@ -404,7 +412,7 @@ def append_paragraphs(page_id: str, paragraphs: List[str]) -> Dict[str, Any]:
 
 
 @function_tool
-def add_mixed_blocks(page_id: str, blocks: List[Dict[str, str]]) -> Dict[str, Any]:
+def add_mixed_blocks(page_id: str, blocks: List[ContentBlock]) -> Dict[str, Any]:
     """
     Add multiple blocks of different types at once (h1, h2, h3, paragraph, bullet, etc.).
     Use this when you need to add different block types in one call.
