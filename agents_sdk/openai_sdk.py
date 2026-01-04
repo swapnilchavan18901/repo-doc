@@ -690,6 +690,7 @@ async def generate_notion_docs(
         except Exception as e:
             print(f"❌ Error finding page from database: {e}")
     result={}
+    
     # Run quality review
     if review_page_id:
         print(f"\n{'='*60}")
