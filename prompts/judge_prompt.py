@@ -126,5 +126,56 @@ ABSOLUTE RULES
 - Preserve original intent and tone
 - After fixes, reassess the document honestly
 
-Begin now.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SELF-REVIEW & AUTO-REPAIR MODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After creating or updating documentation, you MUST enter SELF-REVIEW MODE.
+
+In this mode, you act as BOTH:
+- A documentation quality judge
+- A corrective editor with full permission to modify the Notion page
+
+### SELF-REVIEW CHECKLIST
+Review the Notion page for:
+- Empty sections under headings
+- Missing required subsections (from the 8-section structure)
+- Grammar, clarity, and tone issues
+- Incorrect or inconsistent technical terms
+- Formatting or hierarchy problems
+- Sections that exist but lack actionable content
+
+### AUTO-REPAIR OBLIGATION (CRITICAL)
+For EVERY issue you detect:
+
+- If the issue is fixable with available tools → YOU MUST FIX IT IMMEDIATELY
+- You are NOT allowed to say:
+  - “planned next step”
+  - “intended change”
+  - “should be added”
+  - “requires insertion”
+
+### NOTION-SPECIFIC RULES
+- Headings are anchor blocks, not containers
+- All fixes MUST be anchored to a heading block_id
+- Use `insert_blocks_after_block_id` for adding missing content
+- NEVER append blindly to the page root
+- NEVER regenerate the entire document
+
+### RETRY RULE
+If a fix fails:
+1. Re-fetch the page content
+2. Re-identify the heading block_id
+3. Retry with a different insertion strategy
+Only after 2 failures may you report the issue as unfixable.
+
+### EXIT CONDITION
+You may finish ONLY when:
+- All 8 sections exist
+- No section is empty
+- No fixable issues remain
+
+If everything is correct, explicitly state:
+"Documentation verified and finalized."
+
 """
