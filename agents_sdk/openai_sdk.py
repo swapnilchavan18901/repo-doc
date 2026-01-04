@@ -524,54 +524,98 @@ def generate_notion_docs(
     Returns:
         Dictionary with generation results
     """
-    from prompts.openai_agent_prompt import get_openai_agent_prompt
-    
-    # Build context
-    context_info = ""
-    if repo_full_name and before_sha and after_sha:
-        context_info += f"GITHUB REPOSITORY: {repo_full_name}\n"
-        context_info += f"COMMIT RANGE: {before_sha[:7]}...{after_sha[:7]}\n\n"
-    
-    if database_id:
-        context_info += f"TARGET DATABASE ID: {database_id} (create new page)\n"
-    if page_id:
-        context_info += f"TARGET PAGE ID: {page_id} (update existing page)\n"
-    if not database_id and not page_id:
-        context_info += "NO TARGET SPECIFIED: Discover databases and create/identify page.\n"
-    
-    # Create agent
-    system_prompt = get_openai_agent_prompt(context_info)
-    agent = Agent(
-        name="Documentation Generator",
-        instructions=system_prompt,
-        tools=ALL_TOOLS,
-        model="gpt-5-nano"
-    )
-    
-    # Build task
-    task = "Generate comprehensive technical documentation. "
-    if repo_full_name:
-        task += f"Analyze repository {repo_full_name}. "
-    if database_id:
-        task += f"Create page in database {database_id}. "
-    elif page_id:
-        task += f"Update page {page_id}. "
-    
-    print(f"\n{'='*60}")
-    print(f"🚀 RUNNING OPENAI AGENT")
-    print(f"{'='*60}\n")
-    
-    # Run agent synchronously
-    agent_result = Runner.run_sync(agent, task)
-    
-    print(f"\n{'='*60}")
-    print(f"✅ AGENT COMPLETED")
-    print(f"{'='*60}\n")
-    
-    result = {
-        "content": str(agent_result.final_output) if hasattr(agent_result, 'final_output') else str(agent_result),
-        "iterations": "N/A (SDK managed)"
-    }
+    try:
+        print(f"🔧 Starting generate_notion_docs function...")
+        print(f"📊 Parameters:")
+        print(f"   - repo_full_name: {repo_full_name}")
+        print(f"   - before_sha: {before_sha}")
+        print(f"   - after_sha: {after_sha}")
+        print(f"   - database_id: {database_id}")
+        print(f"   - page_id: {page_id}")
+        
+        # Check environment variables
+        print(f"🔐 Environment check:")
+        print(f"   - LLM_API_KEY: {'SET' if LLM_API_KEY else 'NOT SET'}")
+        print(f"   - OPENAI_API_KEY env: {'SET' if os.environ.get('OPENAI_API_KEY') else 'NOT SET'}")
+        
+        from prompts.openai_agent_prompt import get_openai_agent_prompt
+        print(f"✅ Successfully imported prompt function")
+        
+        # Build context
+        context_info = ""
+        if repo_full_name and before_sha and after_sha:
+            context_info += f"GITHUB REPOSITORY: {repo_full_name}\n"
+            context_info += f"COMMIT RANGE: {before_sha[:7]}...{after_sha[:7]}\n\n"
+        
+        if database_id:
+            context_info += f"TARGET DATABASE ID: {database_id} (create new page)\n"
+        if page_id:
+            context_info += f"TARGET PAGE ID: {page_id} (update existing page)\n"
+        if not database_id and not page_id:
+            context_info += "NO TARGET SPECIFIED: Discover databases and create/identify page.\n"
+        
+        print(f"📝 Context info prepared: {len(context_info)} characters")
+        
+        # Create agent
+        print(f"🤖 Creating agent...")
+        system_prompt = get_openai_agent_prompt(context_info)
+        print(f"📋 System prompt created: {len(system_prompt)} characters")
+        
+        try:
+            agent = Agent(
+                name="Documentation Generator",
+                instructions=system_prompt,
+                tools=ALL_TOOLS,
+                model="gpt-4o"  # Changed from gpt-5-nano to gpt-4o
+            )
+            print(f"✅ Agent created successfully")
+        except Exception as agent_error:
+            print(f"❌ Agent creation failed: {agent_error}")
+            raise
+        
+        # Build task
+        task = "Generate comprehensive technical documentation. "
+        if repo_full_name:
+            task += f"Analyze repository {repo_full_name}. "
+        if database_id:
+            task += f"Create page in database {database_id}. "
+        elif page_id:
+            task += f"Update page {page_id}. "
+        
+        print(f"📋 Task: {task}")
+        
+        print(f"\n{'='*60}")
+        print(f"🚀 RUNNING OPENAI AGENT")
+        print(f"{'='*60}\n")
+        
+        # Run agent synchronously
+        try:
+            agent_result = Runner.run_sync(agent, task)
+            print(f"✅ Agent execution completed")
+            print(f"📊 Result type: {type(agent_result)}")
+            print(f"📊 Result attributes: {dir(agent_result)}")
+        except Exception as run_error:
+            print(f"❌ Agent execution failed: {run_error}")
+            raise
+        
+        print(f"\n{'='*60}")
+        print(f"✅ AGENT COMPLETED")
+        print(f"{'='*60}\n")
+        
+        result = {
+            "content": str(agent_result.final_output) if hasattr(agent_result, 'final_output') else str(agent_result),
+            "iterations": "N/A (SDK managed)"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in generate_notion_docs: {e}")
+        import traceback
+        print(f"🔍 Traceback: {traceback.format_exc()}")
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "success": False
+        }
     
     # Find page_id for judge
     review_page_id = page_id
