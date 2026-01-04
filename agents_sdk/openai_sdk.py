@@ -688,14 +688,28 @@ async def generate_notion_docs(
         except Exception as e:
             print(f"❌ Error finding page from database: {e}")
     
-    judge_result = judge_notion_docs(review_page_id)
-    result["judge_result"] = judge_result
-    result["reviewed_page_id"] = review_page_id
-    print(f"\n{'='*60}")
-    print(f"✅ JUDGE AGENT COMPLETED")
-    print(f"📊 Judge completed in {judge_result.get('iterations')} iterations")
-    print(f"{'='*60}\n")
-    
-    print(f"{'='*60}\n")
+    # Run quality review
+    if review_page_id:
+        print(f"\n{'='*60}")
+        print(f"🔍 QUALITY REVIEW")
+        print(f"{'='*60}\n")
+        
+        try:
+            judge_result = await judge_notion_docs(review_page_id)
+            result["judge_result"] = judge_result.get("judge_result", judge_result)
+            result["reviewed_page_id"] = judge_result.get("reviewed_page_id", review_page_id)
+            
+            print(f"\n{'='*60}")
+            print(f"✅ JUDGE AGENT COMPLETED")
+            if "judge_result" in judge_result and isinstance(judge_result["judge_result"], dict):
+                iterations = judge_result["judge_result"].get("iterations", "N/A")
+                print(f"📊 Judge completed in {iterations} iterations")
+            print(f"{'='*60}\n")
+        except Exception as e:
+            print(f"\n❌ Quality review failed: {e}")
+            result["judge_error"] = str(e)
+    else:
+        print(f"\n⚠️  Quality review skipped: No page_id available")
+        result["judge_skipped"] = "No page_id found"
     
     return result
