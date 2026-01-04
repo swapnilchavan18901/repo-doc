@@ -735,7 +735,6 @@ def generate_notion_docs(
     Returns:
         Dictionary with generation results
     """
-    import asyncio
     from prompts.openai_agent_prompt import get_openai_agent_prompt
     
     # Build context
@@ -773,11 +772,8 @@ def generate_notion_docs(
     print(f"🚀 RUNNING OPENAI AGENT")
     print(f"{'='*60}\n")
     
-    # Run agent
-    async def _run():
-        return await Runner.run(agent, task)
-    
-    agent_result = asyncio.run(_run())
+    # Run agent synchronously
+    agent_result = Runner.run_sync(agent, task)
     
     print(f"\n{'='*60}")
     print(f"✅ AGENT COMPLETED")
