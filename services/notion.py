@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 from typing import Dict, List, Optional, Any
 from env import NOTION_API_KEY, NOTION_DATABASE_ID
 
@@ -15,6 +16,43 @@ class NotionService:
             "Notion-Version": "2022-06-28",
             "Content-Type": "application/json"
         }
+    
+    def _is_valid_uuid(self, uuid_str: str) -> bool:
+        """Check if a string contains a valid UUID format (with or without hyphens, with or without prefix)"""
+        if not uuid_str or not isinstance(uuid_str, str):
+            return False
+        
+        # Check for placeholder values first
+        if uuid_str.upper() in ['TO_FILL', 'PLACEHOLDER', 'NONE', 'NULL', '']:
+            return False
+        
+        # Remove hyphens and look for a 32-character hex string (UUID)
+        # This handles prefixes like "DocDelta-ReadMe-2d322f89689b8005a4e8c224ae074ddd"
+        uuid_clean = uuid_str.replace('-', '')
+        uuid_pattern = re.compile(r'[0-9a-f]{32}', re.IGNORECASE)
+        match = uuid_pattern.search(uuid_clean)
+        
+        # Must find exactly 32 hex characters
+        return bool(match and len(match.group(0)) == 32)
+    
+    def _normalize_uuid(self, uuid_str: str) -> str:
+        """Normalize UUID format for Notion API (extracts UUID and ensures proper format with hyphens)"""
+        if not uuid_str:
+            return uuid_str
+        
+        # Remove hyphens and extract the 32-character hex UUID
+        # This handles prefixes like "DocDelta-ReadMe-2d322f89689b8005a4e8c224ae074ddd"
+        uuid_clean = uuid_str.replace('-', '')
+        uuid_pattern = re.compile(r'[0-9a-f]{32}', re.IGNORECASE)
+        match = uuid_pattern.search(uuid_clean)
+        
+        if not match:
+            return uuid_str  # Return original if no UUID found
+        
+        uuid_clean = match.group(0)
+        
+        # Format with hyphens in standard format: 8-4-4-4-12
+        return f"{uuid_clean[0:8]}-{uuid_clean[8:12]}-{uuid_clean[12:16]}-{uuid_clean[16:20]}-{uuid_clean[20:32]}"
 
     def search_page_by_title(self, input_str: str) -> Dict[str, Any]:
         """Search for a page by title. Format: 'page_title'"""
@@ -108,17 +146,35 @@ class NotionService:
         }
 
     def get_database_schema(self, database_id: str) -> Dict[str, Any]:
-        url = f"{self.base_url}/databases/{database_id}"
+        # Validate database_id before making API call
+        if not self._is_valid_uuid(database_id):
+            error_msg = f"Invalid database ID format: {database_id}. Must be a valid UUID."
+            print(f"SCHEMA STATUS: 400 (validation)")
+            print(f"SCHEMA RAW: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg
+            }
+        
+        # Normalize UUID (remove hyphens if present)
+        normalized_id = self._normalize_uuid(database_id)
+        url = f"{self.base_url}/databases/{normalized_id}"
 
         res = requests.get(url, headers=self.headers)
 
         print("SCHEMA STATUS:", res.status_code)
-        print("SCHEMA RAW:", res.text)
+        if res.status_code != 200:
+            # Only print full error in debug mode or if it's not a 404
+            if res.status_code == 404:
+                print(f"SCHEMA RAW: Database not found or not accessible: {database_id}")
+            else:
+                print("SCHEMA RAW:", res.text)
 
         if res.status_code != 200:
             return {
                 "success": False,
-                "error": res.text
+                "error": res.text,
+                "status_code": res.status_code
             }
 
         data = res.json()
@@ -152,7 +208,19 @@ class NotionService:
         except Exception as e:
             return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
         
-        url = f"{self.base_url}/databases/{database_id}/query"
+        # Validate database_id before making API call
+        if not self._is_valid_uuid(database_id):
+            error_msg = f"Invalid database ID format: {database_id}. Must be a valid UUID."
+            print(f"QUERY DATABASE STATUS: 400 (validation)")
+            print(f"QUERY DATABASE RAW: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg
+            }
+        
+        # Normalize UUID (remove hyphens if present)
+        normalized_id = self._normalize_uuid(database_id)
+        url = f"{self.base_url}/databases/{normalized_id}/query"
         
         payload = {
             "page_size": page_size,
@@ -167,12 +235,20 @@ class NotionService:
         res = requests.post(url, headers=self.headers, json=payload)
         
         print("QUERY DATABASE STATUS:", res.status_code)
-        print("QUERY DATABASE RAW:", res.text)
+        if res.status_code != 200:
+            # Only print full error in debug mode or if it's not a 404
+            if res.status_code == 404:
+                print(f"QUERY DATABASE RAW: Database not found or not accessible: {database_id}")
+            else:
+                print("QUERY DATABASE RAW:", res.text)
+        else:
+            print("QUERY DATABASE RAW:", res.text)
         
         if res.status_code != 200:
             return {
                 "success": False,
-                "error": res.text
+                "error": res.text,
+                "status_code": res.status_code
             }
         
         data = res.json()
@@ -217,10 +293,25 @@ class NotionService:
         except Exception as e:
             return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
         
+        # Validate database_id before proceeding
+        if not self._is_valid_uuid(database_id):
+            return {
+                "success": False,
+                "error": f"Invalid database ID format: {database_id}. Must be a valid UUID."
+            }
+        
         # Step 1: get schema to resolve title key
         schema = self.get_database_schema(database_id)
 
         if not schema.get("success"):
+            # If it's a 404, provide a more helpful error message
+            if schema.get("status_code") == 404:
+                return {
+                    "success": False,
+                    "error": f"Database not found or not accessible. Make sure the database ID is correct and the integration has access to it.",
+                    "database_id": database_id,
+                    "details": schema
+                }
             return {
                 "success": False,
                 "error": "Failed to resolve database schema",
@@ -228,10 +319,13 @@ class NotionService:
             }
 
         title_key = schema["title_key"]
+        
+        # Normalize database_id for API call
+        normalized_db_id = self._normalize_uuid(database_id)
 
         payload = {
             "parent": {
-                "database_id": database_id
+                "database_id": normalized_db_id
             },
             "properties": {
                 title_key: {
@@ -279,6 +373,17 @@ class NotionService:
             
             page_id, blocks_json = input_str.split('|', 1)
             page_id = page_id.strip()
+            
+            # Validate page_id before making API call
+            if not self._is_valid_uuid(page_id):
+                error_msg = f"Invalid page ID format: '{page_id}'. Must be a valid UUID. If you see 'TO_FILL', the page was not created successfully."
+                print(f"APPEND BLOCKS STATUS: 400 (validation)")
+                print(f"APPEND BLOCKS RAW: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg
+                }
+            
             blocks_data = json.loads(blocks_json)
             
             # Support both single block and array of blocks
@@ -291,7 +396,9 @@ class NotionService:
         except Exception as e:
             return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
         
-        url = f"{self.base_url}/blocks/{page_id}/children"
+        # Normalize page_id for API call
+        normalized_page_id = self._normalize_uuid(page_id)
+        url = f"{self.base_url}/blocks/{normalized_page_id}/children"
 
         payload = {
             "children": blocks
@@ -300,12 +407,17 @@ class NotionService:
         res = requests.patch(url, headers=self.headers, json=payload)
 
         print("APPEND BLOCKS STATUS:", res.status_code)
-        print("APPEND BLOCKS RAW:", res.text)
+        if res.status_code != 200:
+            print("APPEND BLOCKS RAW:", res.text)
+        else:
+            # Only print on success if needed for debugging
+            pass
 
         if res.status_code != 200:
             return {
                 "success": False,
-                "error": res.text
+                "error": res.text,
+                "status_code": res.status_code
             }
 
         return {
@@ -314,8 +426,14 @@ class NotionService:
         }
   
     def get_page_blocks(self, page_id: str) -> List[Dict[str, Any]]:
+        # Validate page_id
+        if not self._is_valid_uuid(page_id):
+            raise ValueError(f"Invalid page ID format: {page_id}. Must be a valid UUID.")
+        
+        # Normalize page_id for API call
+        normalized_page_id = self._normalize_uuid(page_id)
         res = requests.get(
-            f"{self.base_url}/blocks/{page_id}/children",
+            f"{self.base_url}/blocks/{normalized_page_id}/children",
             headers=self.headers
         )
 
@@ -333,6 +451,14 @@ class NotionService:
             
             page_id, heading_text, content_json = parts
             page_id = page_id.strip()
+            
+            # Validate page_id before proceeding
+            if not self._is_valid_uuid(page_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid page ID format: '{page_id}'. Must be a valid UUID."
+                }
+            
             heading_text = heading_text.strip()
             new_blocks = json.loads(content_json)
         except json.JSONDecodeError:
@@ -369,20 +495,24 @@ class NotionService:
 
         # Delete old section blocks (excluding heading)
         for block in blocks[start_index + 1:end_index]:
+            normalized_block_id = self._normalize_uuid(block['id'])
             requests.delete(
-                f"{self.base_url}/blocks/{block['id']}",
+                f"{self.base_url}/blocks/{normalized_block_id}",
                 headers=self.headers
             )
 
         # Insert new blocks after heading
         heading_block_id = blocks[start_index]["id"]
+        
+        # Normalize block_id for API call
+        normalized_block_id = self._normalize_uuid(heading_block_id)
 
         payload = {
             "children": new_blocks
         }
 
         res = requests.patch(
-            f"{self.base_url}/blocks/{heading_block_id}/children",
+            f"{self.base_url}/blocks/{normalized_block_id}/children",
             headers=self.headers,
             json=payload
         )
@@ -408,6 +538,15 @@ class NotionService:
         """Get content from a Notion page with block structure. Format: 'page_id'"""
         try:
             page_id = input_str.strip()
+            
+            # Validate page_id before proceeding
+            if not self._is_valid_uuid(page_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid page ID format: '{page_id}'. Must be a valid UUID.",
+                    "page_id": page_id
+                }
+            
             blocks = self.get_page_blocks(page_id)
             
             content_sections = []
@@ -513,6 +652,14 @@ class NotionService:
             
             parts = input_str.split('|', 1)
             page_id = parts[0].strip()
+            
+            # Validate page_id before proceeding
+            if not self._is_valid_uuid(page_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid page ID format: '{page_id}'. Must be a valid UUID. If you see 'TO_FILL', the page was not created successfully."
+                }
+            
             block_input = parts[1]
             
             block_result = self.create_blocks(block_input)
@@ -547,6 +694,13 @@ class NotionService:
             page_id, bullets_str = input_str.split('|', 1)
             page_id = page_id.strip()
             
+            # Validate page_id before proceeding
+            if not self._is_valid_uuid(page_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid page ID format: '{page_id}'. Must be a valid UUID."
+                }
+            
             # Split by ## separator
             bullet_texts = [b.strip() for b in bullets_str.split('##') if b.strip()]
             
@@ -579,6 +733,13 @@ class NotionService:
             
             page_id, items_str = input_str.split('|', 1)
             page_id = page_id.strip()
+            
+            # Validate page_id before proceeding
+            if not self._is_valid_uuid(page_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid page ID format: '{page_id}'. Must be a valid UUID."
+                }
             
             # Split by ## separator
             item_texts = [i.strip() for i in items_str.split('##') if i.strip()]
@@ -613,6 +774,13 @@ class NotionService:
             page_id, paras_str = input_str.split('|', 1)
             page_id = page_id.strip()
             
+            # Validate page_id before proceeding
+            if not self._is_valid_uuid(page_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid page ID format: '{page_id}'. Must be a valid UUID."
+                }
+            
             # Split by ## separator
             para_texts = [p.strip() for p in paras_str.split('##') if p.strip()]
             
@@ -645,14 +813,24 @@ class NotionService:
             
             after_block_id, blocks_json = input_str.split('|', 1)
             after_block_id = after_block_id.strip()
+            
+            # Validate block_id before proceeding
+            if not self._is_valid_uuid(after_block_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid block ID format: '{after_block_id}'. Must be a valid UUID."
+                }
+            
             new_blocks = json.loads(blocks_json)
         except json.JSONDecodeError:
             return {"success": False, "error": "Invalid JSON format for blocks"}
         except Exception as e:
             return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
         
+        # Normalize block_id for API call
+        normalized_block_id = self._normalize_uuid(after_block_id)
         res = requests.patch(
-            f"{self.base_url}/blocks/{after_block_id}/children",
+            f"{self.base_url}/blocks/{normalized_block_id}/children",
             headers=self.headers,
             json={"children": new_blocks}
         )
@@ -674,6 +852,14 @@ class NotionService:
             
             page_id, after_text, blocks_json = parts
             page_id = page_id.strip()
+            
+            # Validate page_id before proceeding
+            if not self._is_valid_uuid(page_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid page ID format: '{page_id}'. Must be a valid UUID."
+                }
+            
             after_text = after_text.strip()
             new_blocks = json.loads(blocks_json)
         except json.JSONDecodeError:
