@@ -5,16 +5,13 @@ import asyncio
 import time
 from typing import Dict, List, Any, Optional, TypedDict
 from agents import Agent, function_tool, Runner
-from services.github_actions import GitHubService
 from services.notion import NotionService
-from agents_sdk.judge_sdk import judge_notion_docs
 from env import LLM_API_KEY
 
 # Set OpenAI API key for agents SDK
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 
 # Initialize services
-github_service = GitHubService()
 notion_service = NotionService()
 
 
@@ -24,97 +21,6 @@ class ContentBlock(TypedDict, total=False):
     type: str
     text: str
     extra: str
-
-
-# ============================================================================
-# GITHUB TOOLS
-# ============================================================================
-
-@function_tool
-def get_github_diff(repo_full_name: str, before_sha: str, after_sha: str) -> Dict[str, Any]:
-    """
-    Get the diff between two commits showing all file changes with patches.
-    
-    Args:
-        repo_full_name: Repository full name in format 'owner/repo'
-        before_sha: The commit SHA before changes
-        after_sha: The commit SHA after changes
-        
-    Returns:
-        Dictionary with success status, files changed, and diff details
-    """
-    input_str = f"{repo_full_name}|{before_sha}|{after_sha}"
-    return github_service.get_diff(input_str)
-
-
-@function_tool
-def get_github_file_tree(repo_full_name: str, sha: str, path: str = "") -> Dict[str, Any]:
-    """
-    Get the file tree/directory structure of the repository (one level only).
-    
-    Args:
-        repo_full_name: Repository full name in format 'owner/repo'
-        sha: Commit SHA or branch name (e.g., 'main')
-        path: Directory path to list (empty string for root)
-        
-    Returns:
-        Dictionary with success status and directory contents
-    """
-    input_str = f"{repo_full_name}|{sha}|{path}"
-    return github_service.get_file_tree(input_str)
-
-
-@function_tool
-def read_github_file(repo_full_name: str, filepath: str, sha: str = "main") -> Dict[str, Any]:
-    """
-    Read the complete content of a specific file from GitHub repository.
-    
-    Args:
-        repo_full_name: Repository full name in format 'owner/repo'
-        filepath: Path to the file in the repository
-        sha: Commit SHA or branch name (defaults to 'main')
-        
-    Returns:
-        Dictionary with success status and file content
-    """
-    input_str = f"{repo_full_name}|{filepath}|{sha}"
-    return github_service.read_file(input_str)
-
-
-@function_tool
-def search_github_code(repo_full_name: str, query: str, max_results: int = 10) -> Dict[str, Any]:
-    """
-    Search for code in the repository using keywords or patterns.
-    
-    Args:
-        repo_full_name: Repository full name in format 'owner/repo'
-        query: Search query (keywords, function names, class names, etc.)
-        max_results: Maximum number of results to return (default 10)
-        
-    Returns:
-        Dictionary with success status and search results
-    """
-    input_str = f"{repo_full_name}|{query}|{max_results}"
-    return github_service.search_code(input_str)
-
-
-@function_tool
-def list_all_github_files(repo_full_name: str, sha: str , path: str = "") -> Dict[str, Any]:
-    """
-    Recursively list ALL files in the repository (flat list, all directories).
-    Best for understanding complete project structure.
-    
-    Args:
-        repo_full_name: Repository full name in format 'owner/repo'
-        sha: Commit SHA or branch name (defaults to 'main')
-        path: Starting path (empty string for entire repo)
-        
-    Returns:
-        Dictionary with success status and complete file listing
-    """
-    input_str = f"{repo_full_name}|{sha}|{path}"
-    return github_service.list_all_files_recursive(input_str)
-
 
 # ============================================================================
 # NOTION TOOLS
@@ -482,12 +388,6 @@ def add_mixed_blocks(page_id: str, blocks: List[ContentBlock]) -> Dict[str, Any]
 
 # Collect all tools
 ALL_TOOLS = [
-    # GitHub tools
-    get_github_diff,
-    get_github_file_tree,
-    read_github_file,
-    search_github_code,
-    list_all_github_files,
     # Notion tools
     get_notion_databases,
     search_page_by_title,
@@ -504,198 +404,39 @@ ALL_TOOLS = [
     append_paragraphs,
 ]
 
-async def generate_notion_docs(
-    repo_full_name: str = None,
-    before_sha: str = None,
-    after_sha: str = None,
-    database_id: str = None,
-    page_id: str = None,
-    max_iterations: int = 100
+async def judge_notion_docs(
+    page_id: str,
+    max_iterations: int = 50
 ):
     """
-    Generate Notion documentation using OpenAI Agents SDK.
-    Drop-in replacement for the LiteLLM version.
+    Review and fix quality issues in Notion documentation using OpenAI Agents SDK.
     
     Args:
-        repo_full_name: GitHub repository 'owner/repo'
-        before_sha: Commit SHA before changes
-        after_sha: Commit SHA after changes  
-        database_id: Notion database ID to create page in
-        page_id: Existing Notion page ID to update
-        max_iterations: Not used (SDK manages iterations)
+        page_id: Existing Notion page ID to review and update
+        max_iterations: Maximum number of iterations (default 50)
         
     Returns:
-        Dictionary with generation results
+        Dictionary with review results
     """
-    #here
-    try:
-        print(f"🔧 Starting generate_notion_docs function...")
-        print(f"📊 Parameters:")
-        print(f"   - repo_full_name: {repo_full_name}")
-        print(f"   - before_sha: {before_sha}")
-        print(f"   - after_sha: {after_sha}")
-        print(f"   - database_id: {database_id}")
-        print(f"   - page_id: {page_id}")
-        
-        # Check environment variables
-        print(f"🔐 Environment check:")
-        print(f"   - LLM_API_KEY: {'SET' if LLM_API_KEY else 'NOT SET'}")
-        print(f"   - OPENAI_API_KEY env: {'SET' if os.environ.get('OPENAI_API_KEY') else 'NOT SET'}")
-        
-        from prompts.openai_agent_prompt import get_openai_agent_prompt
-        print(f"✅ Successfully imported prompt function")
-        # Build context
-        context_info = ""
-        if repo_full_name and before_sha and after_sha:
-            context_info += f"GITHUB REPOSITORY: {repo_full_name}\n"
-            context_info += f"COMMIT RANGE: {before_sha[:7]}...{after_sha[:7]}\n\n"
-        
-        if database_id:
-            context_info += f"TARGET DATABASE ID: {database_id} (create new page)\n"
-        if page_id:
-            context_info += f"TARGET PAGE ID: {page_id} (update existing page)\n"
-        if not database_id and not page_id:
-            context_info += "NO TARGET SPECIFIED: Discover databases and create/identify page.\n"
-        
-        print(f"📝 Context info prepared: {len(context_info)} characters")
-        
-        # Create agent
-        print(f"🤖 Creating agent...")
-        system_prompt = get_openai_agent_prompt(context_info)
-        print(f"📋 System prompt created: {len(system_prompt)} characters")
-        
-        
-        try:
-            agent = Agent(
-                name="Documentation Generator",
-                instructions=system_prompt,
-                tools=ALL_TOOLS,
-                model="gpt-5-nano"
-            )
-            print(f"✅ Agent created successfully")
-        except Exception as agent_error:
-            print(f"❌ Agent creation failed: {agent_error}")
-            raise
-        
-        # Build task
-        task = "Generate comprehensive technical documentation. "
-
-        if repo_full_name:
-            task += f"Analyze repository {repo_full_name}. "
-        if database_id:
-            task += f"Create page in database {database_id}. "
-        elif page_id:
-            task += f"Update page {page_id}. "
-        
-        print(f"📋 Task: {task}")
-        
+    result = {}
+        # Run quality review
+    if page_id:
         print(f"\n{'='*60}")
-        print(f"🚀 RUNNING OPENAI AGENT")
+        print(f"🔍 QUALITY REVIEW")
         print(f"{'='*60}\n")
-        
-        # Run agent asynchronously with retry logic for rate limits
-        # Since Runner.run_sync() can't be called in an event loop,
-        # we run it in a separate thread using asyncio.to_thread()
-        max_turns_value = 100
-        print(f"⚙️  Max turns set to: {max_turns_value}")
-        
-        # Retry configuration for rate limits
-        max_retries = 5
-        base_delay = 5  # Start with 5 seconds
-        retry_count = 0
-        
-        while retry_count <= max_retries:
-            try:
-                if retry_count > 0:
-                    print(f"🔄 Retry attempt {retry_count}/{max_retries} after rate limit...")
-                
-                print(f"🔄 Running agent in thread pool to avoid event loop conflict...")
-                agent_result = await asyncio.to_thread(
-                    Runner.run_sync, 
-                    agent, 
-                    task,
-                    max_turns=max_turns_value
-                )
-                print(f"✅ Agent execution completed")
-                print(f"📊 Result type: {type(agent_result)}")
-                print(f"📊 Result attributes: {dir(agent_result)}")
-                break  # Success, exit retry loop
-                
-            except Exception as run_error:
-                error_str = str(run_error)
-                print(f"❌ Agent execution failed: {error_str}")
-        
-        print(f"\n{'='*60}")
-        print(f"✅ AGENT COMPLETED")
-        print(f"{'='*60}\n")
-        
-        result = {
+            
+        agent_result = await asyncio.to_thread(
+            Runner.run_sync, 
+            agent, 
+            task,
+            max_turns=max_turns_value
+        )
+        print(f"✅ Agent execution completed")
+        judge_result = {
             "content": str(agent_result.final_output) if hasattr(agent_result, 'final_output') else str(agent_result),
             "iterations": "N/A (SDK managed)"
         }
-        
-    except Exception as e:
-        print(f"❌ Error in generate_notion_docs: {e}")
-        import traceback
-        print(f"🔍 Traceback: {traceback.format_exc()}")
-        return {
-            "error": str(e),
-            "traceback": traceback.format_exc(),
-            "success": False
-        }
-    
-    # Find page_id for judge
-    review_page_id = page_id
-    if not review_page_id and database_id:
-        try:
-            # First, get all databases to find the actual database ID
-            print(f"🔍 Looking up database from available databases...")
-            all_dbs_result = notion_service.get_all_databases("")
-            
-            if not all_dbs_result.get("success"):
-                print(f"⚠️  Could not list databases: {all_dbs_result.get('error')}")
-            else:
-                # Extract UUID from database_id (handles prefixes like "DocDelta-ReadMe-")
-                import re
-                db_uuid_pattern = re.compile(r'[0-9a-f]{32}', re.IGNORECASE)
-                db_uuid_match = db_uuid_pattern.search(database_id.replace('-', ''))
-                
-                if db_uuid_match:
-                    target_uuid = db_uuid_match.group(0)
-                    # Normalize to format with hyphens
-                    normalized_target = f"{target_uuid[0:8]}-{target_uuid[8:12]}-{target_uuid[12:16]}-{target_uuid[16:20]}-{target_uuid[20:32]}"
-                    
-                    # Find matching database
-                    matching_db = None
-                    for db in all_dbs_result.get("databases", []):
-                        # Compare UUIDs (normalize both)
-                        db_id_clean = db["id"].replace('-', '')
-                        if db_id_clean == target_uuid:
-                            matching_db = db
-                            break
-                    
-                    if matching_db:
-                        print(f"✅ Found matching database: {matching_db['title']} ({matching_db['id']})")
-                        # Now query pages from the actual database ID
-                        db_result = notion_service.query_database_pages(f"{matching_db['id']}|1")
-                        if db_result.get("success") and db_result.get("pages"):
-                            review_page_id = db_result["pages"][0].get("page_id")
-                            print(f"📍 Found most recent page: {review_page_id}")
-                    else:
-                        print(f"⚠️  Database with UUID {normalized_target} not found in accessible databases")
-                else:
-                    print(f"⚠️  Could not extract UUID from database_id: {database_id}")            
-        except Exception as e:
-            print(f"❌ Error finding page from database: {e}")
-    
-    judge_result = judge_notion_docs(review_page_id)
-    result["judge_result"] = judge_result
-    result["reviewed_page_id"] = review_page_id
-    print(f"\n{'='*60}")
-    print(f"✅ JUDGE AGENT COMPLETED")
-    print(f"📊 Judge completed in {judge_result.get('iterations')} iterations")
-    print(f"{'='*60}\n")
-    
-    print(f"{'='*60}\n")
-    
+        result["judge_result"] = judge_result
+        result["reviewed_page_id"] = page_id
+
     return result
