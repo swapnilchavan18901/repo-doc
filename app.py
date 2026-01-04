@@ -50,7 +50,7 @@ async def generate_notion_docs_endpoint(request: Request):
         print(f"\n🚀 Starting agent execution...")
         
         # Pass repo context to AI agent - it will find/create the right page
-        result = generate_notion_docs(
+        result = await generate_notion_docs(
                  repo_full_name=repo_full_name,
                  before_sha=before_sha,
                  after_sha=after_sha,

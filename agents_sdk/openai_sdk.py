@@ -501,7 +501,7 @@ ALL_TOOLS = [
     append_paragraphs,
 ]
 
-def generate_notion_docs(
+async def generate_notion_docs(
     repo_full_name: str = None,
     before_sha: str = None,
     after_sha: str = None,
@@ -588,9 +588,12 @@ def generate_notion_docs(
         print(f"🚀 RUNNING OPENAI AGENT")
         print(f"{'='*60}\n")
         
-        # Run agent synchronously
+        # Run agent asynchronously
         try:
-            agent_result = Runner.run_sync(agent, task)
+            from agents import AgentRunner
+
+            runner = AgentRunner()
+            agent_result = await runner.run(agent, task)
             print(f"✅ Agent execution completed")
             print(f"📊 Result type: {type(agent_result)}")
             print(f"📊 Result attributes: {dir(agent_result)}")
@@ -643,6 +646,7 @@ def generate_notion_docs(
                 judge_context += f"- Source: {repo_full_name}\n"
             judge_context += f"\nReview and fix quality issues.\n"
             
+            # Note: judge_notion_docs is synchronous, so we don't await it
             judge_result = judge_notion_docs(
                 page_id=review_page_id,
                 generation_context=judge_context,
