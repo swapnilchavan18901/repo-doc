@@ -576,6 +576,7 @@ async def generate_notion_docs(
         
         # Build task
         task = "Generate comprehensive technical documentation. "
+        
         if repo_full_name:
             task += f"Analyze repository {repo_full_name}. "
         if database_id:
