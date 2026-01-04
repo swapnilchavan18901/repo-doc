@@ -3,7 +3,9 @@ import os
 import subprocess
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from ai_services.generate_notion_docs import generate_notion_docs
+# from ai_services.generate_notion_docs import generate_notion_docs
+from agents_sdk.openai_sdk import generate_notion_docs
+from env import NOTION_DATABASE_ID
 
 load_dotenv()
 
@@ -35,11 +37,18 @@ async def generate_notion_docs_endpoint(request: Request):
             }
         
         # Pass repo context to AI agent - it will find/create the right page
+        # result = generate_notion_docs(
+        #     repo_full_name=repo_full_name,
+        #     before_sha=before_sha,
+        #     after_sha=after_sha
+        # )
         result = generate_notion_docs(
-            repo_full_name=repo_full_name,
-            before_sha=before_sha,
-            after_sha=after_sha
-        )
+                 repo_full_name=repo_full_name,
+                 before_sha=before_sha,
+                 after_sha=after_sha
+                 NOTION_DATABASE_ID
+                )
+
         
         return {
             "success": True,
