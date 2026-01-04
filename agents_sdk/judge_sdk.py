@@ -418,25 +418,120 @@ async def judge_notion_docs(
     Returns:
         Dictionary with review results
     """
-    result = {}
-        # Run quality review
-    if page_id:
+    try:
+        print(f"🔧 Starting judge_notion_docs function...")
+        print(f"📊 Parameters:")
+        print(f"   - page_id: {page_id}")
+        print(f"   - max_iterations: {max_iterations}")
+        
+        # Check environment variables
+        print(f"🔐 Environment check:")
+        print(f"   - LLM_API_KEY: {'SET' if LLM_API_KEY else 'NOT SET'}")
+        print(f"   - OPENAI_API_KEY env: {'SET' if os.environ.get('OPENAI_API_KEY') else 'NOT SET'}")
+        
+        from prompts.judge_prompt import get_judge_prompt
+        print(f"✅ Successfully imported prompt function")
+        
+        # Build context
+        context_info = f"TARGET PAGE ID: {page_id}\n"
+        context_info += "Review this Notion page for quality issues and fix them automatically.\n"
+        
+        print(f"📝 Context info prepared: {len(context_info)} characters")
+        
+        # Create agent
+        print(f"🤖 Creating agent...")
+        system_prompt = get_judge_prompt(context_info)
+        print(f"📋 System prompt created: {len(system_prompt)} characters")
+        
+        try:
+            agent = Agent(
+                name="Documentation Quality Judge",
+                instructions=system_prompt,
+                tools=ALL_TOOLS,
+                model="gpt-5-nano"
+            )
+            print(f"✅ Agent created successfully")
+        except Exception as agent_error:
+            print(f"❌ Agent creation failed: {agent_error}")
+            raise
+        
+        # Build task
+        task = f"Review and improve the quality of the Notion documentation page {page_id}. "
+        task += "Read the page content, identify all quality issues (grammar, formatting, spacing, content quality), "
+        task += "and fix them automatically using the available tools."
+        
+        print(f"📋 Task: {task}")
+        
         print(f"\n{'='*60}")
-        print(f"🔍 QUALITY REVIEW")
+        print(f"🚀 RUNNING JUDGE AGENT")
         print(f"{'='*60}\n")
-            
-        agent_result = await asyncio.to_thread(
-            Runner.run_sync, 
-            agent, 
-            task,
-            max_turns=max_turns_value
-        )
-        print(f"✅ Agent execution completed")
+        
+        # Run agent asynchronously with retry logic for rate limits
+        max_turns_value = 50
+        print(f"⚙️  Max turns set to: {max_turns_value}")
+        
+        # Retry configuration for rate limits
+        max_retries = 5
+        base_delay = 5  # Start with 5 seconds
+        retry_count = 0
+        
+        while retry_count <= max_retries:
+            try:
+                if retry_count > 0:
+                    print(f"🔄 Retry attempt {retry_count}/{max_retries} after rate limit...")
+                
+                print(f"🔄 Running agent in thread pool to avoid event loop conflict...")
+                agent_result = await asyncio.to_thread(
+                    Runner.run_sync, 
+                    agent, 
+                    task,
+                    max_turns=max_turns_value
+                )
+                print(f"✅ Agent execution completed")
+                print(f"📊 Result type: {type(agent_result)}")
+                break  # Success, exit retry loop
+                
+            except Exception as run_error:
+                error_str = str(run_error)
+                print(f"❌ Agent execution failed: {error_str}")
+                
+                # Check if it's a rate limit error
+                if "rate limit" in error_str.lower() or "429" in error_str:
+                    retry_count += 1
+                    if retry_count <= max_retries:
+                        delay = base_delay * (2 ** (retry_count - 1))  # Exponential backoff
+                        print(f"⏳ Rate limit hit. Waiting {delay} seconds before retry...")
+                        await asyncio.sleep(delay)
+                    else:
+                        print(f"❌ Max retries reached. Giving up.")
+                        raise
+                else:
+                    # Not a rate limit error, re-raise immediately
+                    raise
+        
+        print(f"\n{'='*60}")
+        print(f"✅ JUDGE AGENT COMPLETED")
+        print(f"{'='*60}\n")
+        
         judge_result = {
             "content": str(agent_result.final_output) if hasattr(agent_result, 'final_output') else str(agent_result),
             "iterations": "N/A (SDK managed)"
         }
-        result["judge_result"] = judge_result
-        result["reviewed_page_id"] = page_id
-
+        
+        result = {
+            "judge_result": judge_result,
+            "reviewed_page_id": page_id
+        }
+        
+    except Exception as e:
+        print(f"❌ Error in judge_notion_docs: {e}")
+        import traceback
+        print(f"🔍 Traceback: {traceback.format_exc()}")
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "success": False,
+            "reviewed_page_id": page_id
+        }
+    
     return result
