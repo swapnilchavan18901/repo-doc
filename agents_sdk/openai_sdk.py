@@ -566,7 +566,7 @@ async def generate_notion_docs(
                 name="Documentation Generator",
                 instructions=system_prompt,
                 tools=ALL_TOOLS,
-                model="gpt-4o"  # Changed from gpt-5-nano to gpt-4o
+                model="gpt-5-nano"
             )
             print(f"✅ Agent created successfully")
         except Exception as agent_error:
