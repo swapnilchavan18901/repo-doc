@@ -676,8 +676,8 @@ async def generate_notion_docs(
                 max_iterations=50
             )
             
-            result["judge_result"] = judge_result
-            result["reviewed_page_id"] = review_page_id
+            new_result["judge_result"] = judge_result
+            new_result["reviewed_page_id"] = review_page_id
             
             print(f"\n{'='*60}")
             print(f"✅ QUALITY REVIEW COMPLETED")
@@ -685,9 +685,9 @@ async def generate_notion_docs(
                 
         except Exception as e:
             print(f"\n❌ Quality review failed: {e}")
-            result["judge_error"] = str(e)
+            new_result["judge_error"] = str(e)
     else:
         print(f"\n⚠️  Quality review skipped: No page_id available")
-        result["judge_skipped"] = "No page_id found"
+        new_result["judge_skipped"] = "No page_id found"
     
     return result
