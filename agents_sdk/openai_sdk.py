@@ -647,12 +647,46 @@ async def generate_notion_docs(
     review_page_id = page_id
     if not review_page_id and database_id:
         try:
-            db_result = notion_service.query_database_pages(f"{database_id}|1")
-            if db_result.get("success") and db_result.get("pages"):
-                review_page_id = db_result["pages"][0].get("page_id")
-                print(f"📍 Found most recent page: {review_page_id}")
+            # First, get all databases to find the actual database ID
+            print(f"🔍 Looking up database from available databases...")
+            all_dbs_result = notion_service.get_all_databases("")
+            
+            if not all_dbs_result.get("success"):
+                print(f"⚠️  Could not list databases: {all_dbs_result.get('error')}")
+            else:
+                # Extract UUID from database_id (handles prefixes like "DocDelta-ReadMe-")
+                import re
+                db_uuid_pattern = re.compile(r'[0-9a-f]{32}', re.IGNORECASE)
+                db_uuid_match = db_uuid_pattern.search(database_id.replace('-', ''))
+                
+                if db_uuid_match:
+                    target_uuid = db_uuid_match.group(0)
+                    # Normalize to format with hyphens
+                    normalized_target = f"{target_uuid[0:8]}-{target_uuid[8:12]}-{target_uuid[12:16]}-{target_uuid[16:20]}-{target_uuid[20:32]}"
+                    
+                    # Find matching database
+                    matching_db = None
+                    for db in all_dbs_result.get("databases", []):
+                        # Compare UUIDs (normalize both)
+                        db_id_clean = db["id"].replace('-', '')
+                        if db_id_clean == target_uuid:
+                            matching_db = db
+                            break
+                    
+                    if matching_db:
+                        print(f"✅ Found matching database: {matching_db['title']} ({matching_db['id']})")
+                        # Now query pages from the actual database ID
+                        db_result = notion_service.query_database_pages(f"{matching_db['id']}|1")
+                        if db_result.get("success") and db_result.get("pages"):
+                            review_page_id = db_result["pages"][0].get("page_id")
+                            print(f"📍 Found most recent page: {review_page_id}")
+                    else:
+                        print(f"⚠️  Database with UUID {normalized_target} not found in accessible databases")
+                else:
+                    print(f"⚠️  Could not extract UUID from database_id: {database_id}")
+                    
         except Exception as e:
-            print(f"❌ Error querying database: {e}")
+            print(f"❌ Error finding page from database: {e}")
     
     # Run quality review
     if review_page_id:
