@@ -11,7 +11,6 @@ class GitHubService:
     GitHub API service for accessing repository data.
     Provides methods to get diffs, read files, and explore repo structure.
     """
-
     def __init__(self):
         """
         Initialize GitHub service.
