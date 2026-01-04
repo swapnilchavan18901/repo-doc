@@ -594,13 +594,16 @@ async def generate_notion_docs(
         # Since Runner.run_sync() can't be called in an event loop,
         # we run it in a separate thread using asyncio.to_thread()
         try:
-            
+            print(f"🔄 Running agent in thread pool to avoid event loop conflict...")
             # Use max_iterations for max_turns, default to 50 if not provided
             max_turns_value = 100
             print(f"⚙️  Max turns set to: {max_turns_value}")
-            # Use lambda to properly pass keyword argument to Runner.run_sync
-            agent_result = Runner.run_sync(agent, task, max_turns=max_turns_value)
-            
+            agent_result = await asyncio.to_thread(
+                Runner.run_sync, 
+                agent, 
+                task,
+                max_turns=max_turns_value
+            )
             print(f"✅ Agent execution completed")
             print(f"📊 Result type: {type(agent_result)}")
             print(f"📊 Result attributes: {dir(agent_result)}")
