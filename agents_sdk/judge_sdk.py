@@ -494,21 +494,7 @@ async def judge_notion_docs(
             except Exception as run_error:
                 error_str = str(run_error)
                 print(f"❌ Agent execution failed: {error_str}")
-                
-                # Check if it's a rate limit error
-                if "rate limit" in error_str.lower() or "429" in error_str:
-                    retry_count += 1
-                    if retry_count <= max_retries:
-                        delay = base_delay * (2 ** (retry_count - 1))  # Exponential backoff
-                        print(f"⏳ Rate limit hit. Waiting {delay} seconds before retry...")
-                        await asyncio.sleep(delay)
-                    else:
-                        print(f"❌ Max retries reached. Giving up.")
-                        raise
-                else:
-                    # Not a rate limit error, re-raise immediately
-                    raise
-        
+
         print(f"\n{'='*60}")
         print(f"✅ JUDGE AGENT COMPLETED")
         print(f"{'='*60}\n")
