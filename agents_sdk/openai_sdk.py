@@ -17,6 +17,7 @@ os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 os.environ["OPENAI_LOG"] = "debug"  # Enable debug logging
 os.environ["AGENTS_TRACE"] = "true"  # Enable agent tracing if supported
 
+
 # Initialize services
 github_service = GitHubService()
 notion_service = NotionService()
