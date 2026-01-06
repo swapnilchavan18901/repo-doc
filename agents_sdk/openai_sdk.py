@@ -483,7 +483,7 @@ def add_mixed_blocks(page_id: str, blocks: List[ContentBlock]) -> Dict[str, Any]
 from prompts.judge_prompt import get_judge_prompt
 
 @function_tool
-def review_documentation_quality(
+async def review_documentation_quality(
     page_id: str,
     context: str = "",
     repo_full_name: str = "",
@@ -562,9 +562,9 @@ def review_documentation_quality(
         print(f"🤖 Creating judge agent with context...")
         print(f"📋 Analysis task: {task}\n")
         
-        # Run judge agent
+        # Run judge agent asynchronously since we're already in an event loop
         runner = Runner()
-        result = runner.run_sync(judge_agent, task, max_turns=20)
+        result = await runner.run(judge_agent, task, max_turns=20)
         
         print(f"\n{'='*60}")
         print(f"✅ QUALITY ANALYSIS COMPLETED")
