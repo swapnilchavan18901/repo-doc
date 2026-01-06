@@ -564,7 +564,7 @@ def review_documentation_quality(
         
         # Run judge agent
         runner = Runner()
-        result = runner.run_sync(agent=judge_agent, task=task, max_turns=20)
+        result = runner.run_sync(judge_agent, task, max_turns=20)
         
         print(f"\n{'='*60}")
         print(f"✅ QUALITY ANALYSIS COMPLETED")
