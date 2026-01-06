@@ -477,6 +477,122 @@ def add_mixed_blocks(page_id: str, blocks: List[ContentBlock]) -> Dict[str, Any]
 
 
 # ============================================================================
+# JUDGE AGENT AS TOOL (WITH DYNAMIC CONTEXT)
+# ============================================================================
+
+from prompts.judge_prompt import get_judge_prompt
+
+@function_tool
+def review_documentation_quality(
+    page_id: str,
+    context: str = "",
+    repo_full_name: str = "",
+    database_id: str = ""
+) -> Dict[str, Any]:
+    """
+    Analyze Notion documentation quality and provide detailed feedback on issues.
+    
+    This tool runs a specialized judge agent that thoroughly analyzes the documentation
+    and returns a comprehensive quality report with specific, actionable recommendations.
+    
+    Use this AFTER creating or updating documentation to get quality analysis.
+    Then fix any issues identified by the judge using appropriate Notion tools.
+    
+    Args:
+        page_id: The Notion page ID to analyze (REQUIRED)
+        context: Additional context about the documentation (optional)
+        repo_full_name: GitHub repository name if applicable (optional)
+        database_id: Notion database ID if applicable (optional)
+        
+    Returns:
+        Detailed analysis report with:
+        - Overall quality score (0-100)
+        - Section-by-section analysis
+        - Critical/major/minor issues found
+        - Specific recommendations for fixes
+        - Priority actions to take
+    
+    Example:
+        review_documentation_quality(
+            page_id="abc123",
+            context="Technical documentation for API service",
+            repo_full_name="myorg/myrepo"
+        )
+    """
+    try:
+        print(f"\n{'='*60}")
+        print(f"🔍 STARTING QUALITY ANALYSIS")
+        print(f"{'='*60}")
+        print(f"📄 Page ID: {page_id}")
+        if repo_full_name:
+            print(f"📦 Repository: {repo_full_name}")
+        if database_id:
+            print(f"🗄️  Database ID: {database_id}")
+        if context:
+            print(f"📝 Context: {context}")
+        print(f"{'='*60}\n")
+        
+        # Build dynamic context for judge
+        judge_context = f"TARGET PAGE ID: {page_id}\n\n"
+        
+        if repo_full_name:
+            judge_context += f"REPOSITORY: {repo_full_name}\n"
+        if database_id:
+            judge_context += f"DATABASE ID: {database_id}\n"
+        if context:
+            judge_context += f"ADDITIONAL CONTEXT: {context}\n"
+        
+        judge_context += "\nYour task: Analyze this Notion documentation page and provide comprehensive quality feedback.\n"
+        
+        # Create judge agent with dynamic context
+        judge_agent = Agent(
+            name="Documentation Quality Judge",
+            instructions=get_judge_prompt(judge_context),
+            tools=[
+                get_notion_page_content,
+            ],
+            model="gpt-5-nano"
+        )
+        
+        # Build analysis task
+        task = f"Analyze the quality of documentation page {page_id}. "
+        task += "Provide a thorough analysis covering completeness, clarity, accuracy, formatting, and professionalism. "
+        task += "Return a detailed report with specific, actionable recommendations."
+        
+        print(f"🤖 Creating judge agent with context...")
+        print(f"📋 Analysis task: {task}\n")
+        
+        # Run judge agent
+        runner = Runner()
+        result = runner.run_sync(agent=judge_agent, task=task, max_turns=20)
+        
+        print(f"\n{'='*60}")
+        print(f"✅ QUALITY ANALYSIS COMPLETED")
+        print(f"{'='*60}\n")
+        
+        # Extract the analysis from result
+        analysis_output = str(result.final_output) if hasattr(result, 'final_output') else str(result)
+        
+        return {
+            "success": True,
+            "page_id": page_id,
+            "analysis": analysis_output,
+            "message": "Quality analysis completed successfully. Review the analysis and apply recommended fixes."
+        }
+        
+    except Exception as e:
+        print(f"\n❌ Quality analysis failed: {e}")
+        import traceback
+        print(f"🔍 Traceback: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "page_id": page_id,
+            "error": str(e),
+            "message": f"Quality analysis failed: {str(e)}"
+        }
+
+
+# ============================================================================
 # AGENT CREATION
 # ============================================================================
 
@@ -502,6 +618,8 @@ ALL_TOOLS = [
     update_notion_section,
     insert_blocks_after_text,
     append_paragraphs,
+    # Judge agent as tool (with dynamic context support)
+    review_documentation_quality,
 ]
 
 async def generate_notion_docs(
@@ -528,190 +646,125 @@ async def generate_notion_docs(
         Dictionary with generation results
     """
     #here
-    # try:
-    #     print(f"🔧 Starting generate_notion_docs function...")
-    #     print(f"📊 Parameters:")
-    #     print(f"   - repo_full_name: {repo_full_name}")
-    #     print(f"   - before_sha: {before_sha}")
-    #     print(f"   - after_sha: {after_sha}")
-    #     print(f"   - database_id: {database_id}")
-    #     print(f"   - page_id: {page_id}")
+    try:
+        print(f"🔧 Starting generate_notion_docs function...")
+        print(f"📊 Parameters:")
+        print(f"   - repo_full_name: {repo_full_name}")
+        print(f"   - before_sha: {before_sha}")
+        print(f"   - after_sha: {after_sha}")
+        print(f"   - database_id: {database_id}")
+        print(f"   - page_id: {page_id}")
         
-    #     # Check environment variables
-    #     print(f"🔐 Environment check:")
-    #     print(f"   - LLM_API_KEY: {'SET' if LLM_API_KEY else 'NOT SET'}")
-    #     print(f"   - OPENAI_API_KEY env: {'SET' if os.environ.get('OPENAI_API_KEY') else 'NOT SET'}")
+        # Check environment variables
+        print(f"🔐 Environment check:")
+        print(f"   - LLM_API_KEY: {'SET' if LLM_API_KEY else 'NOT SET'}")
+        print(f"   - OPENAI_API_KEY env: {'SET' if os.environ.get('OPENAI_API_KEY') else 'NOT SET'}")
         
-    #     from prompts.openai_agent_prompt import get_openai_agent_prompt
-    #     print(f"✅ Successfully imported prompt function")
-    #     # Build context
-    #     context_info = ""
-    #     if repo_full_name and before_sha and after_sha:
-    #         context_info += f"GITHUB REPOSITORY: {repo_full_name}\n"
-    #         context_info += f"COMMIT RANGE: {before_sha[:7]}...{after_sha[:7]}\n\n"
+        from prompts.openai_agent_prompt import get_openai_agent_prompt
+        print(f"✅ Successfully imported prompt function")
+        # Build context
+        context_info = ""
+        if repo_full_name and before_sha and after_sha:
+            context_info += f"GITHUB REPOSITORY: {repo_full_name}\n"
+            context_info += f"COMMIT RANGE: {before_sha[:7]}...{after_sha[:7]}\n\n"
         
-    #     if database_id:
-    #         context_info += f"TARGET DATABASE ID: {database_id} (create new page)\n"
-    #     if page_id:
-    #         context_info += f"TARGET PAGE ID: {page_id} (update existing page)\n"
-    #     if not database_id and not page_id:
-    #         context_info += "NO TARGET SPECIFIED: Discover databases and create/identify page.\n"
+        if database_id:
+            context_info += f"TARGET DATABASE ID: {database_id} (create new page)\n"
+        if page_id:
+            context_info += f"TARGET PAGE ID: {page_id} (update existing page)\n"
+        if not database_id and not page_id:
+            context_info += "NO TARGET SPECIFIED: Discover databases and create/identify page.\n"
         
-    #     print(f"📝 Context info prepared: {len(context_info)} characters")
+        print(f"📝 Context info prepared: {len(context_info)} characters")
         
-    #     # Create agent
-    #     print(f"🤖 Creating agent...")
-    #     system_prompt = get_openai_agent_prompt(context_info)
-    #     print(f"📋 System prompt created: {len(system_prompt)} characters")
+        # Create agent
+        print(f"🤖 Creating agent...")
+        system_prompt = get_openai_agent_prompt(context_info)
+        print(f"📋 System prompt created: {len(system_prompt)} characters")
         
         
-    #     try:
-    #         agent = Agent(
-    #             name="Documentation Generator",
-    #             instructions=system_prompt,
-    #             tools=ALL_TOOLS,
-    #             model="gpt-5-nano"
-    #         )
-    #         print(f"✅ Agent created successfully")
-    #     except Exception as agent_error:
-    #         print(f"❌ Agent creation failed: {agent_error}")
-    #         raise
-        
-    #     # Build task
-    #     task = "Generate comprehensive technical documentation. "
-
-    #     if repo_full_name:
-    #         task += f"Analyze repository {repo_full_name}. "
-    #     if database_id:
-    #         task += f"Create page in database {database_id}. "
-    #     elif page_id:
-    #         task += f"Update page {page_id}. "
-        
-    #     print(f"📋 Task: {task}")
-        
-    #     print(f"\n{'='*60}")
-    #     print(f"🚀 RUNNING OPENAI AGENT")
-    #     print(f"{'='*60}\n")
-        
-    #     # Run agent asynchronously with retry logic for rate limits
-    #     # Since Runner.run_sync() can't be called in an event loop,
-    #     # we run it in a separate thread using asyncio.to_thread()
-    #     max_turns_value = 100
-    #     print(f"⚙️  Max turns set to: {max_turns_value}")
-        
-    #     # Retry configuration for rate limits
-    #     max_retries = 5
-    #     base_delay = 5  # Start with 5 seconds
-    #     retry_count = 0
-        
-    #     while retry_count <= max_retries:
-    #         try:
-    #             if retry_count > 0:
-    #                 print(f"🔄 Retry attempt {retry_count}/{max_retries} after rate limit...")
-                
-    #             print(f"🔄 Running agent in thread pool to avoid event loop conflict...")
-    #             agent_result = await asyncio.to_thread(
-    #                 Runner.run_sync, 
-    #                 agent, 
-    #                 task,
-    #                 max_turns=max_turns_value
-    #             )
-    #             print(f"✅ Agent execution completed")
-                
-    #             print(f"📊 Result type: {type(agent_result)}")
-    #             print(f"📊 Result attributes: {dir(agent_result)}")
-    #             break  # Success, exit retry loop
-                
-    #         except Exception as run_error:
-    #             error_str = str(run_error)
-    #             print(f"❌ Agent execution failed: {error_str}")
-        
-    #     print(f"\n{'='*60}")
-        
-    #     print(f"✅ AGENT COMPLETED")
-    #     print(f"{'='*60}\n")
-        
-    #     result = {
-    #         "content": str(agent_result.final_output) if hasattr(agent_result, 'final_output') else str(agent_result),
-    #         "iterations": "N/A (SDK managed)"
-    #     }
-        
-    # except Exception as e:
-    #     print(f"❌ Error in generate_notion_docs: {e}")
-    #     import traceback
-    #     print(f"🔍 Traceback: {traceback.format_exc()}")
-    #     return {
-    #         "error": str(e),
-    #         "traceback": traceback.format_exc(),
-    #         "success": False
-    #     }
-    
-    # Find page_id for judge
-    review_page_id = page_id
-    if not review_page_id and database_id:
         try:
-            # First, get all databases to find the actual database ID
-            print(f"🔍 Looking up database from available databases...")
-            all_dbs_result = notion_service.get_all_databases("")
-            
-            if not all_dbs_result.get("success"):
-                print(f"⚠️  Could not list databases: {all_dbs_result.get('error')}")
-            else:
-                # Extract UUID from database_id (handles prefixes like "DocDelta-ReadMe-")
-                import re
-                db_uuid_pattern = re.compile(r'[0-9a-f]{32}', re.IGNORECASE)
-                db_uuid_match = db_uuid_pattern.search(database_id.replace('-', ''))
-                
-                if db_uuid_match:
-                    target_uuid = db_uuid_match.group(0)
-                    # Normalize to format with hyphens
-                    normalized_target = f"{target_uuid[0:8]}-{target_uuid[8:12]}-{target_uuid[12:16]}-{target_uuid[16:20]}-{target_uuid[20:32]}"
-                    
-                    # Find matching database
-                    matching_db = None
-                    for db in all_dbs_result.get("databases", []):
-                        # Compare UUIDs (normalize both)
-                        db_id_clean = db["id"].replace('-', '')
-                        if db_id_clean == target_uuid:
-                            matching_db = db
-                            break
-                    
-                    if matching_db:
-                        print(f"✅ Found matching database: {matching_db['title']} ({matching_db['id']})")
-                        # Now query pages from the actual database ID
-                        db_result = notion_service.query_database_pages(f"{matching_db['id']}|1")
-                        if db_result.get("success") and db_result.get("pages"):
-                            review_page_id = db_result["pages"][0].get("page_id")
-                            print(f"📍 Found most recent page: {review_page_id}")
-                    else:
-                        print(f"⚠️  Database with UUID {normalized_target} not found in accessible databases")
-                else:
-                    print(f"⚠️  Could not extract UUID from database_id: {database_id}")            
-        except Exception as e:
-            print(f"❌ Error finding page from database: {e}")
-    result={}
-    # Run quality review
-    if review_page_id:
+            agent = Agent(
+                name="Documentation Generator",
+                instructions=system_prompt,
+                tools=ALL_TOOLS,
+                model="gpt-5-nano"
+            )
+            print(f"✅ Agent created successfully")
+        except Exception as agent_error:
+            print(f"❌ Agent creation failed: {agent_error}")
+            raise
+        
+        # Build task
+        task = "Generate comprehensive technical documentation. "
+
+        if repo_full_name:
+            task += f"Analyze repository {repo_full_name}. "
+        if database_id:
+            task += f"Create page in database {database_id}. "
+        elif page_id:
+            task += f"Update page {page_id}. "
+        
+        task += "\n\nMANDATORY QUALITY CYCLE: After creating documentation, you MUST: (1) Call review_documentation_quality with page_id and context, (2) Fix ALL critical and major issues using appropriate Notion tools, (3) Re-review to confirm fixes, (4) Iterate until quality score ≥ 80 or status is 'excellent'/'good'. Do NOT skip this cycle."
+        
+        print(f"📋 Task: {task}")
+        
         print(f"\n{'='*60}")
-        print(f"🔍 QUALITY REVIEW")
+        print(f"🚀 RUNNING OPENAI AGENT")
         print(f"{'='*60}\n")
         
-        try:
-            judge_result = await judge_notion_docs(review_page_id)
-            result["judge_result"] = judge_result.get("judge_result", judge_result)
-            result["reviewed_page_id"] = judge_result.get("reviewed_page_id", review_page_id)
-            
-            print(f"\n{'='*60}")
-            print(f"✅ JUDGE AGENT COMPLETED")
-            if "judge_result" in judge_result and isinstance(judge_result["judge_result"], dict):
-                iterations = judge_result["judge_result"].get("iterations", "N/A")
-                print(f"📊 Judge completed in {iterations} iterations")
-            print(f"{'='*60}\n")
-        except Exception as e:
-            print(f"\n❌ Quality review failed: {e}")
-            result["judge_error"] = str(e)
-    else:
-        print(f"\n⚠️  Quality review skipped: No page_id available")
-        result["judge_skipped"] = "No page_id found"
-    
-    return result
+        # Run agent asynchronously with retry logic for rate limits
+        # Since Runner.run_sync() can't be called in an event loop,
+        # we run it in a separate thread using asyncio.to_thread()
+        max_turns_value = 100
+        print(f"⚙️  Max turns set to: {max_turns_value}")
+        
+        # Retry configuration for rate limits
+        max_retries = 5
+        base_delay = 5  # Start with 5 seconds
+        retry_count = 0
+        
+        while retry_count <= max_retries:
+            try:
+                if retry_count > 0:
+                    print(f"🔄 Retry attempt {retry_count}/{max_retries} after rate limit...")
+                
+                print(f"🔄 Running agent in thread pool to avoid event loop conflict...")
+                agent_result = await asyncio.to_thread(
+                    Runner.run_sync, 
+                    agent, 
+                    task,
+                    max_turns=max_turns_value
+                )
+                print(f"✅ Agent execution completed")
+                
+                print(f"📊 Result type: {type(agent_result)}")
+                print(f"📊 Result attributes: {dir(agent_result)}")
+                break  # Success, exit retry loop
+                
+            except Exception as run_error:
+                error_str = str(run_error)
+                print(f"❌ Agent execution failed: {error_str}")
+        
+        print(f"\n{'='*60}")
+        
+        print(f"✅ AGENT COMPLETED")
+        print(f"{'='*60}\n")
+        
+        result = {
+            "content": str(agent_result.final_output) if hasattr(agent_result, 'final_output') else str(agent_result),
+            "iterations": "N/A (SDK managed)",
+            "success": True
+        }
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error in generate_notion_docs: {e}")
+        import traceback
+        print(f"🔍 Traceback: {traceback.format_exc()}")
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "success": False
+        }
