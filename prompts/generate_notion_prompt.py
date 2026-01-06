@@ -64,6 +64,7 @@ You MUST output ONE and ONLY ONE valid JSON object per response.
     "input": "tool_input"     // ONLY for "action" steps
 }}
 
+
 **Step Types:**
 - **plan**: Internal reasoning about what to do next
 - **action**: Call a tool (requires "function" and "input" fields)
