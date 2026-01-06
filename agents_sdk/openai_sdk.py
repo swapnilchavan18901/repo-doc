@@ -13,6 +13,10 @@ from env import LLM_API_KEY
 # Set OpenAI API key for agents SDK
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 
+# Enable tracing for OpenAI Agents SDK
+os.environ["OPENAI_LOG"] = "debug"  # Enable debug logging
+os.environ["AGENTS_TRACE"] = "true"  # Enable agent tracing if supported
+
 # Initialize services
 github_service = GitHubService()
 notion_service = NotionService()
