@@ -416,8 +416,10 @@ def append_paragraphs(page_id: str, paragraphs: List[str]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and number of blocks added
     """
-    # Just use the existing add_paragraphs_batch function
-    return add_paragraphs_batch(page_id, paragraphs)
+    # Directly call the notion service instead of calling another function tool
+    paras_str = "##".join(paragraphs)
+    input_str = f"{page_id}|{paras_str}"
+    return notion_service.add_paragraphs_batch(input_str)
 
 
 @function_tool
