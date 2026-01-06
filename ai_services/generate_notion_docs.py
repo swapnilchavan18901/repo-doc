@@ -7,7 +7,7 @@ from env import LLM_API_KEY
 from prompts.generate_notion_prompt import get_notion_prompt
 from ai_services.judge import judge_notion_docs
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
-DEFAULT_MAX_ITERATIONS = 100
+DEFAULT_MAX_ITERATIONS = 200
 github_service = GitHubService()
 notion_service = NotionService()
 

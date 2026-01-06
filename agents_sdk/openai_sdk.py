@@ -564,7 +564,7 @@ async def review_documentation_quality(
         
         # Run judge agent asynchronously since we're already in an event loop
         runner = Runner()
-        result = await runner.run(judge_agent, task, max_turns=20)
+        result = await runner.run(judge_agent, task, max_turns=200)
         
         print(f"\n{'='*60}")
         print(f"✅ QUALITY ANALYSIS COMPLETED")
@@ -628,7 +628,7 @@ async def generate_notion_docs(
     after_sha: str = None,
     database_id: str = None,
     page_id: str = None,
-    max_iterations: int = 100
+    max_iterations: int = 200
 ):
     """
     Generate Notion documentation using OpenAI Agents SDK.
@@ -716,7 +716,7 @@ async def generate_notion_docs(
         # Run agent asynchronously with retry logic for rate limits
         # Since Runner.run_sync() can't be called in an event loop,
         # we run it in a separate thread using asyncio.to_thread()
-        max_turns_value = 100
+        max_turns_value = 200
         print(f"⚙️  Max turns set to: {max_turns_value}")
         
         # Retry configuration for rate limits
