@@ -34,6 +34,7 @@ You will automatically determine whether to CREATE new documentation or UPDATE e
 
 1. **Query the database** using `query_database_pages(database_id, page_size=20)`:
    - Review all existing pages in the database
+   
    - Look for titles matching the current repository name
    - Check if any page documents this specific project
 
