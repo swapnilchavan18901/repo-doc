@@ -846,7 +846,6 @@ class NotionService:
         # Normalize IDs for API call
         normalized_parent_id = self._normalize_uuid(parent_id)
         normalized_after_id = self._normalize_uuid(after_block_id)
-        
         # FIX: Use parent's children endpoint with 'after' parameter
         res = requests.patch(
             f"{self.base_url}/blocks/{normalized_parent_id}/children",
