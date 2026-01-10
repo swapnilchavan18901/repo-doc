@@ -141,27 +141,59 @@ You already fetched the page content. Now review:
 
 2. **Add ALL 8 sections at once** using `add_mixed_blocks(page_id, blocks)`:
 
-**CRITICAL RULE: NEVER create a heading without content immediately following it!**
+**CRITICAL RULE: NEVER create a heading (h2/h3) without content immediately following it!**
 
-**Required Sections** (each MUST have heading + content):
-1. **Executive Overview** - Heading + 2-3 paragraphs (business value, who uses it, key capabilities)
-2. **Quick Start** - Heading + prerequisites bullets + installation steps + verification
-3. **Architecture & Design** - Heading + paragraphs explaining how it works, system architecture, tech stack, integrations
-4. **Core Features** - Heading + bullets or paragraphs for each feature with use cases
-5. **API/CLI Reference** - Heading + paragraphs/code blocks with endpoints/commands and examples
-6. **Configuration & Deployment** - Heading + environment variables + deployment options
-7. **Troubleshooting** - Heading + bullets/paragraphs with common issues and solutions
-8. **Reference** - Heading + bullets/paragraphs with related resources, links
+**USE ALL BLOCK TYPES AVAILABLE:**
+- **h2**: Main section headings (Executive Overview, Quick Start, etc.)
+- **h3**: Subsection headings within main sections
+- **paragraph**: Explanatory text, descriptions, introductions
+- **bullet**: Feature lists, tech stack, key points (use add_bullets_batch for 2+)
+- **numbered**: Step-by-step instructions, sequential processes (use add_numbered_batch for 2+)
+- **code**: Code examples with language specification (python, bash, javascript, etc.)
+- **callout**: Important notes, warnings (💡 tips, ⚠️ warnings, ✅ highlights)
+- **quote**: Citations, important quotes
+- **divider**: Visual separation between major topics
+- **toc**: Table of contents (if needed)
 
-**Example of CORRECT structure**:
+**Required Sections** (each MUST have h2 heading + diverse content):
+1. **Executive Overview** - h2 + 2-3 paragraphs (business value, key capabilities)
+2. **Quick Start** - h2 + h3 "Prerequisites" + bullets + h3 "Installation" + numbered steps + h3 "Verification" + code block
+3. **Architecture & Design** - h2 + paragraphs + maybe callout for key insight + code example if relevant
+4. **Core Features** - h2 + bullets for each feature (or h3 subsections for detailed features)
+5. **API/CLI Reference** - h2 + h3 subsections + code blocks with examples + paragraphs explaining usage
+6. **Configuration & Deployment** - h2 + h3 "Environment Variables" + bullets/code + h3 "Deployment" + numbered steps
+7. **Troubleshooting** - h2 + h3 for each issue + paragraphs + callouts for warnings
+8. **Reference** - h2 + bullets for links + paragraphs for additional context
+
+**Example of CORRECT structure (using diverse block types)**:
 ```python
 blocks = [
-    {{"type": "h2", "text": "Executive Overview"}},  # Heading
-    {{"type": "paragraph", "text": "This system does X..."}},  # Content paragraph 1
-    {{"type": "paragraph", "text": "It provides Y benefits..."}},  # Content paragraph 2
-    {{"type": "h2", "text": "Quick Start"}},  # Next heading
-    {{"type": "paragraph", "text": "Follow these steps..."}},  # Content
-    # ... etc
+    # Executive Overview section
+    {{"type": "h2", "text": "Executive Overview"}},
+    {{"type": "paragraph", "text": "This system automates documentation generation..."}},
+    {{"type": "paragraph", "text": "Key benefits: reduced manual work, consistent docs..."}},
+    
+    # Quick Start section with subsections
+    {{"type": "h2", "text": "Quick Start"}},
+    {{"type": "h3", "text": "Prerequisites"}},
+    {{"type": "bullet", "text": "Python 3.8+"}},
+    {{"type": "bullet", "text": "Notion API key"}},
+    {{"type": "bullet", "text": "GitHub access"}},
+    {{"type": "h3", "text": "Installation"}},
+    {{"type": "numbered", "text": "Clone the repository"}},
+    {{"type": "numbered", "text": "Install dependencies: pip install -r requirements.txt"}},
+    {{"type": "code", "text": "pip install -r requirements.txt\\nuvicorn app:app --reload", "extra": "bash"}},
+    {{"type": "callout", "text": "Make sure to set environment variables before running!", "extra": "⚠️"}},
+    
+    # Core Features section
+    {{"type": "h2", "text": "Core Features"}},
+    {{"type": "paragraph", "text": "The system provides these capabilities:"}},
+    {{"type": "bullet", "text": "Automated doc generation from GitHub webhooks"}},
+    {{"type": "bullet", "text": "Surgical updates to existing documentation"}},
+    {{"type": "bullet", "text": "Quality assessment with AI judge"}},
+    {{"type": "divider"}},
+    
+    # ... continue with more sections
 ]
 ```
 
@@ -170,6 +202,7 @@ blocks = [
 blocks = [
     {{"type": "h2", "text": "Executive Overview"}},  # Heading
     {{"type": "h2", "text": "Quick Start"}},  # Another heading - WRONG! No content after Executive Overview!
+    # ❌ This creates an empty section - will fail quality review!
 ]
 ```
 
@@ -340,17 +373,32 @@ Keep fixing and re-reviewing until:
 - ❌ **NEVER create a heading block without content immediately after it** (this creates empty sections!)
 
 ### Content Structure Rules (PREVENT EMPTY SECTIONS):
-- **Every heading MUST be followed by content** (paragraphs, bullets, code blocks, etc.)
-- When building blocks array, always add content blocks after each heading block
-- If you're unsure what content to add, add at least one paragraph placeholder
+- **Every heading (h2/h3) MUST be followed by content** - paragraphs, bullets, code blocks, etc.
+- **Use diverse block types** - Don't just repeat h2 → paragraph pattern! Mix paragraphs, bullets, numbered lists, code, callouts
+- When building blocks array, always add varied content blocks after each heading
+- **h3 subsections add structure** - Use them to organize content within h2 sections
+- If you're unsure what content to add, add at least one paragraph placeholder (but prefer varied types)
 - Empty headings are a **CRITICAL** issue that will fail quality review
+- **Callouts enhance readability** - Use them for warnings, tips, and important notes
+- **Code blocks with examples** - Always include when showing technical implementation
 
-### Format Choices:
-- **Bullets**: Feature lists, tech stack, use cases, prerequisites
-- **Numbered**: Sequential steps, installation instructions
-- **Paragraphs**: Explanations, context, flowing descriptions
-- **Code blocks**: Always specify language (python, javascript, bash, etc.)
-- **Callouts**: Warnings (⚠️), tips (💡), new features (✅), important notes
+### Format Choices (USE VARIETY - Don't just use h2 + paragraph!):
+- **h2 headings**: Main section dividers (8 required sections)
+- **h3 headings**: Subsections within main sections (always follow with content!)
+- **Bullets**: Feature lists, tech stack, use cases, prerequisites (batch with add_bullets_batch)
+- **Numbered lists**: Sequential steps, installation instructions, ordered processes (batch with add_numbered_batch)
+- **Paragraphs**: Explanations, context, flowing descriptions (batch with add_paragraphs_batch)
+- **Code blocks**: ALWAYS specify language (python, javascript, bash, yaml, json, etc.)
+- **Callouts**: 
+  - ⚠️ Warnings about breaking changes or critical issues
+  - 💡 Tips and best practices
+  - ✅ New features or highlights
+  - 📝 Important notes users should remember
+- **Quotes**: For citations or important statements
+- **Dividers**: Visual breaks between major topics (use sparingly)
+- **TOC**: Table of contents at page start (optional)
+
+**Best Practice**: Mix block types within sections! Don't create monotonous all-paragraph or all-bullet sections.
 
 ---
 
