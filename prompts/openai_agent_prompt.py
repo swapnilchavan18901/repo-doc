@@ -141,15 +141,37 @@ You already fetched the page content. Now review:
 
 2. **Add ALL 8 sections at once** using `add_mixed_blocks(page_id, blocks)`:
 
-**Required Sections:**
-1. **Executive Overview** - Business value, who uses it, key capabilities
-2. **Quick Start** - Prerequisites, installation steps, verification
-3. **Architecture & Design** - How it works, system architecture, tech stack, integrations
-4. **Core Features** - Each feature with use cases, implementation, configuration
-5. **API/CLI Reference** (if applicable) - Common workflows, endpoints/commands with examples
-6. **Configuration & Deployment** - Environment variables, deployment options, CI/CD
-7. **Troubleshooting** - Common issues with solutions, getting help
-8. **Reference** - Related resources, links, documentation
+**CRITICAL RULE: NEVER create a heading without content immediately following it!**
+
+**Required Sections** (each MUST have heading + content):
+1. **Executive Overview** - Heading + 2-3 paragraphs (business value, who uses it, key capabilities)
+2. **Quick Start** - Heading + prerequisites bullets + installation steps + verification
+3. **Architecture & Design** - Heading + paragraphs explaining how it works, system architecture, tech stack, integrations
+4. **Core Features** - Heading + bullets or paragraphs for each feature with use cases
+5. **API/CLI Reference** - Heading + paragraphs/code blocks with endpoints/commands and examples
+6. **Configuration & Deployment** - Heading + environment variables + deployment options
+7. **Troubleshooting** - Heading + bullets/paragraphs with common issues and solutions
+8. **Reference** - Heading + bullets/paragraphs with related resources, links
+
+**Example of CORRECT structure**:
+```python
+blocks = [
+    {"type": "h2", "text": "Executive Overview"},  # Heading
+    {"type": "paragraph", "text": "This system does X..."},  # Content paragraph 1
+    {"type": "paragraph", "text": "It provides Y benefits..."},  # Content paragraph 2
+    {"type": "h2", "text": "Quick Start"},  # Next heading
+    {"type": "paragraph", "text": "Follow these steps..."},  # Content
+    # ... etc
+]
+```
+
+**Example of WRONG structure (DO NOT DO THIS)**:
+```python
+blocks = [
+    {"type": "h2", "text": "Executive Overview"},  # Heading
+    {"type": "h2", "text": "Quick Start"},  # Another heading - WRONG! No content after Executive Overview!
+]
+```
 
 ---
 
@@ -168,33 +190,114 @@ review_documentation_quality(
 ```
 
 ### Step 2: Review Judge's Feedback
-The judge will provide:
+The judge will provide detailed analysis including:
 - Overall quality score (0-100)
-- Critical/major/minor issues by section
-- Specific, actionable recommendations
-- Priority actions to take first
+- **`empty_sections_detected`**: Headings with no content underneath
+- **`blocks_needing_content_after`**: Exact blocks to add with tool parameters
+- **`blocks_to_regenerate`**: Specific blocks that need to be replaced
+- **`duplicate_content_detected`**: Duplicate blocks to remove
+- Critical/major/minor issues with block_ids and exact fixes
+- **`priority_actions`**: Ordered list with exact tool calls and parameters
 
-### Step 3: Fix ALL Issues
-For EACH issue identified:
+### Step 3: Fix Issues Using Judge's Exact Instructions
 
-1. **Understand the issue** - Read judge's feedback carefully
-2. **Choose the right fix tool**:
-   - **Missing content**: `add_mixed_blocks`, `add_bullets_batch`, `add_paragraphs_batch`
-   - **Incorrect content**: `update_notion_section`
-   - **Content placement**: `insert_blocks_after_text`
-   - **Additional content at end**: Use batch append functions
-3. **Apply the fix** - Make targeted changes (don't regenerate entire page)
-4. **Fix critical issues first**, then major, then minor
+**CRITICAL: The judge provides EXACT tool calls in the output. Follow them precisely!**
 
-**Example Fix**:
+#### Fix Type 1: Empty Sections (HIGHEST PRIORITY)
+When judge reports in `empty_sections_detected` or `blocks_needing_content_after`:
+
+```python
+# Judge provides:
+{
+  "blocks_needing_content_after": [{
+    "heading_block_id": "abc-123",
+    "heading_text": "Executive Overview",
+    "suggested_blocks": [
+      {"type": "paragraph", "text": "This system automates..."},
+      {"type": "paragraph", "text": "Key benefits include..."}
+    ],
+    "use_tool": "insert_blocks_after_text",
+    "priority": "critical"
+  }]
+}
+
+# You execute:
+insert_blocks_after_text(
+    page_id="page-id-from-context",
+    after_text="Executive Overview",
+    blocks=[
+        {"type": "paragraph", "text": "This system automates..."},
+        {"type": "paragraph", "text": "Key benefits include..."}
+    ]
+)
 ```
-Judge says: "Quick Start section is missing prerequisites"
 
-Your fix:
-1. Use insert_blocks_after_text to add after "Quick Start" heading
-2. Add H3 "Prerequisites" heading
-3. Add bullet list of prerequisites using add_bullets_batch
+#### Fix Type 2: Duplicate Content
+When judge reports in `duplicate_content_detected`:
+
+```python
+# Judge provides:
+{
+  "duplicate_content_detected": [{
+    "block_ids": ["block-1", "block-2"],
+    "action_required": "Keep block-1, delete block-2"
+  }]
+}
+
+# You execute: (Note: You may need to recreate section without the duplicate)
+update_notion_section(
+    page_id="page-id",
+    heading_text="Section Name",
+    content_blocks=[...blocks without the duplicate...]
+)
 ```
+
+#### Fix Type 3: Regenerate Poor Quality Blocks
+When judge reports in `blocks_to_regenerate`:
+
+```python
+# Judge provides:
+{
+  "blocks_to_regenerate": [{
+    "block_id": "xyz-789",
+    "current_text": "Generic unhelpful text",
+    "suggested_replacement": "Specific improved content",
+    "regeneration_method": "update_notion_section"
+  }]
+}
+
+# You execute the suggested method with improved content
+```
+
+#### Fix Type 4: Follow Priority Actions
+The judge provides `priority_actions` array with EXACT tool calls:
+
+```python
+# Judge provides:
+{
+  "priority_actions": [
+    {
+      "priority": 1,
+      "action": "Fix empty section: Executive Overview",
+      "tool": "insert_blocks_after_text",
+      "params": {
+        "after_text": "Executive Overview",
+        "blocks": [{"type": "paragraph", "text": "Content"}]
+      }
+    }
+  ]
+}
+
+# Execute each priority action in order using the exact tool and params provided
+```
+
+### Step 3 Execution Order:
+1. **Fix all empty sections first** (from `blocks_needing_content_after`)
+2. **Remove duplicates** (from `duplicate_content_detected`)
+3. **Fix critical issues** with block_id references
+4. **Regenerate poor blocks** (from `blocks_to_regenerate`)
+5. **Fix major issues**
+6. **Fix minor issues**
 
 ### Step 4: Re-Review After Fixes
 - Call `review_documentation_quality` again with same parameters
@@ -234,6 +337,13 @@ Keep fixing and re-reviewing until:
 - ❌ NEVER add items one-by-one when batch functions are available
 - ❌ NEVER regenerate entire page in UPDATE mode
 - ❌ NEVER create new pages during fixes or updates
+- ❌ **NEVER create a heading block without content immediately after it** (this creates empty sections!)
+
+### Content Structure Rules (PREVENT EMPTY SECTIONS):
+- **Every heading MUST be followed by content** (paragraphs, bullets, code blocks, etc.)
+- When building blocks array, always add content blocks after each heading block
+- If you're unsure what content to add, add at least one paragraph placeholder
+- Empty headings are a **CRITICAL** issue that will fail quality review
 
 ### Format Choices:
 - **Bullets**: Feature lists, tech stack, use cases, prerequisites

@@ -14,7 +14,7 @@ from env import LLM_API_KEY
 os.environ["OPENAI_API_KEY"] = LLM_API_KEY
 
 # Enable tracing for OpenAI Agents SDK
-os.environ["OPENAI_LOG"] = "debug"  # Enable debug logging
+# os.environ["OPENAI_LOG"] = "debug"  # Enable debug logging
 # os.environ["AGENTS_TRACE"] = "true"  # Enable agent tracing if supported
 
 
