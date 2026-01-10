@@ -59,6 +59,37 @@ You will automatically determine whether to CREATE new documentation or UPDATE e
 
 **Goal**: Apply surgical updates based on code changes. Do NOT recreate the entire page.
 
+**⚠️ CRITICAL: Avoid Common Duplicate Content Bug!**
+
+When updating existing pages, you MUST:
+1. **Read the full page content first** using `get_notion_page_content(page_id)`
+2. **Identify which sections already exist** (look for h2 headings like "Executive Overview", "Quick Start", etc.)
+3. **Use `insert_blocks_after_text`** to add content UNDER existing section headings
+4. **NEVER use `add_mixed_blocks`** to append content at the end - this creates duplicates!
+
+**Example of the bug (DO NOT DO THIS):**
+```python
+# ❌ WRONG - This appends at the end, creating duplicates:
+add_mixed_blocks(page_id, [
+    {{"type": "h2", "text": "Executive Overview"}},  # Section already exists!
+    {{"type": "paragraph", "text": "Duplicate content..."}}
+])
+# Result: "Executive Overview" appears twice, content duplicated at end
+```
+
+**Correct approach (DO THIS):**
+```python
+# ✅ CORRECT - Insert under existing heading:
+insert_blocks_after_text(
+    page_id=page_id,
+    after_text="Executive Overview",  # Find existing section
+    blocks=[
+        {{"type": "paragraph", "text": "New content in right place..."}}
+    ]
+)
+# Result: Content properly inserted under existing "Executive Overview" section
+```
+
 ### Step 1: Analyze What Changed
 1. **Get the git diff** using `get_github_diff(repo_full_name, before_sha, after_sha)`:
    - What files were modified?
@@ -81,6 +112,41 @@ You already fetched the page content. Now review:
 - What sections are affected by the changes?
 - What sections are missing or outdated?
 - Does the structure need changes?
+- **Are there any EMPTY sections (headings with no content)?**
+- **Is there DUPLICATE content (same text appearing multiple times)?**
+
+### Step 2.5: Handle Missing or Deleted Sections (CRITICAL)
+
+**BEFORE adding any new content, check if sections already exist!**
+
+If you find sections with:
+- **Empty headings** (h2/h3 with no content after them) → Fill them using `insert_blocks_after_text`
+- **Partial sections** (section exists but is incomplete) → Add missing content using `insert_blocks_after_text`
+- **Duplicate content** (same text appearing multiple times) → Use `update_notion_section` to replace with deduplicated content
+- **Content at the END that should be INSIDE sections** → DO NOT ADD MORE! Instead, reorganize using `update_notion_section`
+
+**CRITICAL RULES FOR HANDLING DELETED/MISSING CONTENT:**
+1. ❌ **NEVER append content at the end of the page if sections already exist**
+2. ✅ **ALWAYS insert content AFTER the appropriate section heading** using `insert_blocks_after_text`
+3. ✅ **Check the entire page structure BEFORE adding content** - if you see duplicate sections, fix them first
+4. ✅ **If a section heading exists but content is missing** → Use `insert_blocks_after_text(after_text="Section Name", blocks=[...])`
+5. ❌ **DO NOT create duplicate sections** - if "Executive Overview" already exists, don't add another one!
+
+**Example: Fixing empty sections found during update**
+```python
+# BAD - This adds to the end:
+add_mixed_blocks(page_id, [{{"type": "h2", "text": "Executive Overview"}}, ...])  # ❌ WRONG!
+
+# GOOD - This fills existing empty section:
+insert_blocks_after_text(
+    page_id=page_id,
+    after_text="Executive Overview",  # Find the existing heading
+    blocks=[
+        {{"type": "paragraph", "text": "Content goes here..."}},
+        {{"type": "paragraph", "text": "More content..."}}
+    ]
+)  # ✅ CORRECT!
+```
 
 ### Step 3: Apply Surgical Updates
 
@@ -273,25 +339,44 @@ insert_blocks_after_text(
 
 **DO THIS FOR EVERY EMPTY SECTION IMMEDIATELY - NO DELAYS, NO ASKING**
 
-#### Fix Type 2: Duplicate Content
-When judge reports in `duplicate_content_detected`:
+#### Fix Type 2: Duplicate Content (HIGH PRIORITY - COMMON ISSUE)
+When judge reports in `duplicate_content_detected` OR you see duplicate sections/content:
+
+**This often happens when content is appended at the end instead of inserted into existing sections!**
 
 ```python
 # Judge provides:
 {{
   "duplicate_content_detected": [{{
     "block_ids": ["block-1", "block-2"],
-    "action_required": "Keep block-1, delete block-2"
+    "duplicate_text": "Executive Overview content added at end of page",
+    "action_required": "Remove duplicate blocks at end, ensure content is in proper sections"
   }}]
 }}
 
-# You execute: (Note: You may need to recreate section without the duplicate)
+# SOLUTION: Use update_notion_section to recreate the section without duplicates
+# Option 1: If entire section needs to be cleaned up
 update_notion_section(
     page_id="page-id",
     heading_text="Section Name",
-    content_blocks=[...blocks without the duplicate...]
+    content_blocks=[...proper content without duplicates...]
 )
+
+# Option 2: If duplicates are at the END of the page
+# Identify which sections they belong to, then insert them properly:
+insert_blocks_after_text(
+    page_id="page-id",
+    after_text="Executive Overview",  # Insert under correct heading
+    blocks=[...content that was wrongly at the end...]
+)
+# Then the duplicate blocks at the end will be removed in next review cycle
 ```
+
+**PREVENTION: To avoid duplicates in the first place:**
+- ❌ Never use `add_mixed_blocks` to add content if sections already exist
+- ❌ Never append section headings that already exist on the page
+- ✅ Always use `insert_blocks_after_text` to add to existing sections
+- ✅ Read the full page content first to see what already exists
 
 #### Fix Type 3: Regenerate Poor Quality Blocks
 When judge reports in `blocks_to_regenerate`:
@@ -384,16 +469,18 @@ WHILE (score < 80 AND status != "excellent" AND status != "good"):
 - **Progressive depth** - Overview → Use cases → Implementation → Advanced
 
 ### Efficiency Rules (CRITICAL):
-- ✅ Use `add_mixed_blocks` for creating entire sections (most efficient!)
+- ✅ Use `add_mixed_blocks` **ONLY when creating a NEW page from scratch** (CREATE mode)
+- ✅ Use `insert_blocks_after_text` **when adding to EXISTING pages** (UPDATE mode or fixing empty sections)
+- ✅ Use `update_notion_section` to replace entire sections efficiently (for regenerating existing sections)
 - ✅ Use `add_bullets_batch` for 2+ bullet points (one call instead of many)
 - ✅ Use `add_numbered_batch` for 2+ numbered items (one call instead of many)
 - ✅ Use `add_paragraphs_batch` for 2+ paragraphs
-- ✅ Use `update_notion_section` to replace entire sections efficiently
-- ✅ Use `insert_blocks_after_text` for inserting in specific locations
 - ❌ NEVER add items one-by-one when batch functions are available
 - ❌ NEVER regenerate entire page in UPDATE mode
 - ❌ NEVER create new pages during fixes or updates
 - ❌ **NEVER create a heading block without content immediately after it** (this creates empty sections!)
+- ❌ **NEVER use `add_mixed_blocks` to append content to existing pages** - this causes duplicates!
+- ❌ **NEVER append content at the end of a page when sections already exist** - insert into proper sections instead!
 
 ### Content Structure Rules (PREVENT EMPTY SECTIONS):
 - **Every heading (h2/h3) MUST be followed by content** - paragraphs, bullets, code blocks, etc.
@@ -531,12 +618,20 @@ You're done when ALL of these are true:
 ❌ Creating multiple pages for the same project
 ❌ Skipping the quality cycle
 ❌ Stopping before score reaches ≥ 80 or status good/excellent
+❌ **Using `add_mixed_blocks` to append content when updating existing pages** (causes duplicates!)
+❌ **Appending section content at the end of the page instead of inserting into proper sections**
+❌ **Creating duplicate sections with the same heading text**
+❌ **Ignoring existing page structure when adding content**
 
 ## REQUIRED BEHAVIORS (ALWAYS DO THESE)
 
 ✅ Query database first to check for existing pages
 ✅ Create/update ONE page per project
 ✅ Read actual repository code before writing docs
+✅ **Read full page content BEFORE making updates** to understand existing structure
+✅ **Use `insert_blocks_after_text` when adding to existing sections** (not `add_mixed_blocks`)
+✅ **Check for duplicate sections/content BEFORE adding new blocks**
+✅ **Insert content under the appropriate section heading** (not at the end of the page)
 ✅ Call review_documentation_quality after creating/updating docs
 ✅ Parse judge's feedback immediately
 ✅ Execute ALL critical and major fixes using suggested tools

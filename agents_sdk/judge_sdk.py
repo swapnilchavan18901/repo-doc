@@ -476,31 +476,13 @@ def add_mixed_blocks(page_id: str, blocks: List[ContentBlock]) -> Dict[str, Any]
 
 
 # ============================================================================
-# AGENT CREATION
+# JUDGE AGENT TOOLS
 # ============================================================================
 
-# Collect all tools
-ALL_TOOLS = [
-    # GitHub tools
-    get_github_diff,
-    get_github_file_tree,
-    read_github_file,
-    search_github_code,
-    list_all_github_files,
-    # Notion tools
-    get_notion_databases,
-    search_page_by_title,
-    get_notion_page_content,
-    query_database_pages,
-    create_notion_doc_page,
-    add_block_to_page,
-    add_bullets_batch,
-    add_numbered_batch,
-    add_paragraphs_batch,
-    add_mixed_blocks,
-    update_notion_section,
-    insert_blocks_after_text,
-    append_paragraphs,
+# Judge tools - READ ONLY access (judge only analyzes, never modifies)
+# The judge ONLY needs to read page content to perform quality analysis
+JUDGE_TOOLS = [
+    get_notion_page_content,  # Only tool needed: read the page to analyze it
 ]
 
 async def judge_notion_docs(
@@ -508,14 +490,22 @@ async def judge_notion_docs(
     max_iterations: int = 50
 ):
     """
-    Review and fix quality issues in Notion documentation using OpenAI Agents SDK.
+    Analyze Notion documentation quality and return a comprehensive JSON report.
+    
+    This function creates a judge agent that:
+    - Reads the Notion page content (READ-ONLY)
+    - Analyzes quality across multiple dimensions
+    - Returns detailed JSON report with issues and recommendations
+    - Does NOT modify the page (analysis only)
     
     Args:
-        page_id: Existing Notion page ID to review and update
-        max_iterations: Maximum number of iterations (default 50)
+        page_id: Existing Notion page ID to analyze
+        max_iterations: Maximum number of analysis iterations (default 50)
         
     Returns:
-        Dictionary with review results
+        Dictionary with:
+        - judge_result: JSON analysis report with scores, issues, and fix recommendations
+        - reviewed_page_id: The page that was analyzed
     """
     try:
         print(f"🔧 Starting judge_notion_docs function...")
@@ -533,7 +523,7 @@ async def judge_notion_docs(
         
         # Build context
         context_info = f"TARGET PAGE ID: {page_id}\n"
-        context_info += "Review this Notion page for quality issues and fix them automatically.\n"
+        context_info += "Analyze this Notion page for quality issues and provide detailed recommendations.\n"
         
         print(f"📝 Context info prepared: {len(context_info)} characters")
         
@@ -546,18 +536,18 @@ async def judge_notion_docs(
             agent = Agent(
                 name="Documentation Quality Judge",
                 instructions=system_prompt,
-                tools=ALL_TOOLS,
+                tools=JUDGE_TOOLS,  # Judge only gets READ-ONLY tools
                 model="gpt-5-nano"
             )
-            print(f"✅ Agent created successfully")
+            print(f"✅ Agent created successfully with READ-ONLY tools")
         except Exception as agent_error:
             print(f"❌ Agent creation failed: {agent_error}")
             raise
         
         # Build task
-        task = f"Review and improve the quality of the Notion documentation page {page_id}. "
-        task += "Read the page content, identify all quality issues (grammar, formatting, spacing, content quality), "
-        task += "and fix them automatically using the available tools."
+        task = f"Analyze the quality of documentation page {page_id}. "
+        task += "Provide a thorough analysis covering completeness, clarity, accuracy, formatting, and professionalism. "
+        task += "Return a detailed report with specific, actionable recommendations."
         
         print(f"📋 Task: {task}")
         
