@@ -426,6 +426,7 @@ update_notion_section(
 
 **CRITICAL:** Always use `delete_block(block_id)` to remove duplicate headings!
 
+
 **Handling Delete Errors:**
 - If delete_block returns "already archived": ✅ Good! Block was already deleted, continue to next fix
 - If delete_block returns "block not found": ✅ Good! Block doesn't exist anymore, continue
