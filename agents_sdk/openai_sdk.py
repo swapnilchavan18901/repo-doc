@@ -713,7 +713,16 @@ async def generate_notion_docs(
         elif page_id:
             task += f"Update page {page_id}. "
         
-        task += "\n\nMANDATORY QUALITY CYCLE: After creating documentation, you MUST: (1) Call review_documentation_quality with page_id and context, (2) Fix ALL critical and major issues using appropriate Notion tools, (3) Re-review to confirm fixes, (4) Iterate until quality score ≥ 80 or status is 'excellent'/'good'. Do NOT skip this cycle."
+        task += "\n\n🔴 MANDATORY AUTOMATED QUALITY CYCLE - READ CAREFULLY:\n"
+        task += "After creating/updating documentation, you MUST automatically execute this cycle:\n"
+        task += "1. Call review_documentation_quality(page_id, context, repo, db)\n"
+        task += "2. Parse the judge's analysis (score, issues, suggested fixes)\n"
+        task += "3. IMMEDIATELY execute ALL fixes using the suggested tools - DO NOT ask for permission\n"
+        task += "4. Re-review with review_documentation_quality again\n"
+        task += "5. Repeat steps 2-4 until score ≥ 80 OR status is 'excellent'/'good'\n"
+        task += "\n❌ DO NOT: Ask for permission, describe plans, stop after first review\n"
+        task += "✅ DO: Parse judge output, execute fixes immediately, iterate automatically\n"
+        task += "\nYou are AUTHORIZED to make all fixes automatically. Execute the full cycle now."
         
         print(f"📋 Task: {task}")
         
