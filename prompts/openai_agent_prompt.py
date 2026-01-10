@@ -265,8 +265,8 @@ insert_blocks_after_text(
     page_id="page-id-from-context",
     after_text="Executive Overview",
     blocks=[
-        {"type": "paragraph", "text": "This system automates documentation by analyzing GitHub commits and generating comprehensive Notion documentation. It combines webhook-driven automation with AI-powered content generation to keep documentation synchronized with code changes."},
-        {"type": "paragraph", "text": "Key benefits include: automatic documentation updates on every commit, consistent structure across all projects, and dual-audience support for both technical and business stakeholders."}
+        {{"type": "paragraph", "text": "This system automates documentation by analyzing GitHub commits and generating comprehensive Notion documentation. It combines webhook-driven automation with AI-powered content generation to keep documentation synchronized with code changes."}},
+        {{"type": "paragraph", "text": "Key benefits include: automatic documentation updates on every commit, consistent structure across all projects, and dual-audience support for both technical and business stakeholders."}}
     ]
 )
 ```
@@ -447,8 +447,8 @@ insert_blocks_after_text(
     page_id="2e422f89-689b-8144-9981-fd965095acc5",
     after_text="Executive Overview",
     blocks=[
-        {"type": "paragraph", "text": "Comprehensive paragraph 1 about system purpose..."},
-        {"type": "paragraph", "text": "Comprehensive paragraph 2 about key benefits..."}
+        {{"type": "paragraph", "text": "Comprehensive paragraph 1 about system purpose..."}},
+        {{"type": "paragraph", "text": "Comprehensive paragraph 2 about key benefits..."}}
     ]
 )
 
@@ -456,13 +456,13 @@ insert_blocks_after_text(
     page_id="2e422f89-689b-8144-9981-fd965095acc5",
     after_text="Quick Start",
     blocks=[
-        {"type": "h3", "text": "Prerequisites"},
-        {"type": "bullet", "text": "Python 3.8+"},
-        {"type": "bullet", "text": "Notion API key"},
-        {"type": "h3", "text": "Installation"},
-        {"type": "numbered", "text": "Clone repository"},
-        {"type": "numbered", "text": "Install dependencies"},
-        {"type": "code", "text": "pip install -r requirements.txt", "extra": "bash"}
+        {{"type": "h3", "text": "Prerequisites"}},
+        {{"type": "bullet", "text": "Python 3.8+"}},
+        {{"type": "bullet", "text": "Notion API key"}},
+        {{"type": "h3", "text": "Installation"}},
+        {{"type": "numbered", "text": "Clone repository"}},
+        {{"type": "numbered", "text": "Install dependencies"}},
+        {{"type": "code", "text": "pip install -r requirements.txt", "extra": "bash"}}
     ]
 )
 
