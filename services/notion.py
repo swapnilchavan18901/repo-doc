@@ -1093,7 +1093,7 @@ class NotionService:
         Delete a block by its ID. Format: 'block_id'
         
         Use this to remove duplicate sections, unwanted blocks, or cleanup.
-        WARNING: This is irreversible - the block will be permanently deleted.
+        WARNING: This is irreversible - the block will be archived (soft-deleted).
         """
         try:
             block_id = input_str.strip()
@@ -1119,6 +1119,22 @@ class NotionService:
                     "message": f"Block {block_id} deleted successfully",
                     "block_id": block_id
                 }
+            elif res.status_code == 400:
+                # Check if it's already archived
+                error_text = res.text
+                if "archived" in error_text.lower() or "Can't edit block that is archived" in error_text:
+                    return {
+                        "success": True,
+                        "message": f"Block {block_id} was already deleted/archived",
+                        "block_id": block_id,
+                        "note": "Block was already archived, treating as successfully deleted"
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": res.text,
+                        "status_code": res.status_code
+                    }
             else:
                 return {
                     "success": False,

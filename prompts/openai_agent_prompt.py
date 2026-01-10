@@ -410,6 +410,9 @@ page_content = get_notion_page_content(page_id)
 # Step 3: DELETE the duplicate heading using delete_block tool
 delete_block("def-456")  # Deletes the duplicate "Prerequisites" heading
 
+# Note: If block is already archived/deleted, delete_block returns success anyway
+# This is safe - it means the block was already removed
+
 # Step 4: If needed, delete content blocks that were under the duplicate heading
 # (Look at the page structure - content after def-456 until next heading)
 
@@ -422,6 +425,11 @@ update_notion_section(
 ```
 
 **CRITICAL:** Always use `delete_block(block_id)` to remove duplicate headings!
+
+**Handling Delete Errors:**
+- If delete_block returns "already archived": ✅ Good! Block was already deleted, continue to next fix
+- If delete_block returns "block not found": ✅ Good! Block doesn't exist anymore, continue
+- Only if delete fails for other reasons, try alternative approach or report the issue
 
 #### Fix Type 3: Duplicate Content (HIGH PRIORITY - COMMON ISSUE)
 When judge reports in `duplicate_content_detected` OR you see duplicate sections/content:

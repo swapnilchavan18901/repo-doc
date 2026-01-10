@@ -137,6 +137,10 @@ ANALYSIS WORKFLOW
 
 **REMEMBER**: You don't execute the fixes - you just provide the detailed instructions!
 
+**NOTE ABOUT ARCHIVED BLOCKS**: When you call get_notion_page_content, you only see active blocks.
+If a block was previously deleted (archived), it won't appear in the content.
+So if you don't see duplicates anymore, they may have already been cleaned up - don't report them!
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SEVERITY LEVELS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
