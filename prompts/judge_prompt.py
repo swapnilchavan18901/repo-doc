@@ -99,9 +99,19 @@ ANALYSIS WORKFLOW
 
 2. **FIRST PASS - Structural Analysis**:
    - Map out all sections (headings and their content)
+   - **Detect duplicate headings**: Track all h2 and h3 headings - if same text appears multiple times = CRITICAL issue
    - Detect empty sections: heading followed immediately by another heading
-   - Detect duplicate content: same text in multiple blocks
+   - Detect duplicate content: same text in multiple blocks  
    - Identify missing required sections
+   
+   **Example duplicate heading detection:**
+   ```
+   If you see:
+   - Block 5: h3 "Prerequisites" (block_id: abc-123)
+   - Block 15: h3 "Prerequisites" (block_id: def-456)
+   
+   This is CRITICAL - duplicate heading! Report both block_ids.
+   ```
 
 3. **SECOND PASS - Content Quality Analysis**:
    - For each section with content, analyze quality
@@ -269,6 +279,22 @@ Return your analysis in this JSON structure:
     }}
   ],
   
+  "duplicate_headings_detected": [
+    {{
+      "heading_text": "Prerequisites",
+      "heading_type": "heading_3",
+      "occurrences": [
+        {{"block_id": "abc-123", "position": "First occurrence - keep this"}},
+        {{"block_id": "def-456", "position": "Second occurrence - DELETE THIS"}}
+      ],
+      "action_required": "Use delete_block('def-456') to remove duplicate heading",
+      "tool_to_use": "delete_block",
+      "block_ids_to_delete": ["def-456"],
+      "severity": "critical",
+      "explanation": "Duplicate heading 'Prerequisites' found - keep first, delete second"
+    }}
+  ],
+  
   "duplicate_content_detected": [
     {{
       "block_ids": ["block-1", "block-2", "block-3"],
@@ -291,6 +317,15 @@ Return your analysis in this JSON structure:
   "priority_actions": [
     {{
       "priority": 1,
+      "action": "Delete duplicate heading: Prerequisites (block def-456)",
+      "tool": "delete_block",
+      "params": {{
+        "block_id": "def-456"
+      }},
+      "reason": "Duplicate heading must be removed first before other fixes"
+    }},
+    {{
+      "priority": 2,
       "action": "Fix empty section: Executive Overview",
       "tool": "insert_blocks_after_text",
       "params": {{
@@ -299,7 +334,7 @@ Return your analysis in this JSON structure:
       }}
     }},
     {{
-      "priority": 2,
+      "priority": 3,
       "action": "Regenerate poor quality block abc-123",
       "tool": "update_notion_section",
       "params": {{"heading_text": "Section Name", "content_blocks": []}}
@@ -327,9 +362,18 @@ Return your analysis in this JSON structure:
 
 **Critical Detection Patterns:**
 1. **Empty Heading Pattern**: heading_2 "Section Name" → heading_2 "Next Section" (NO CONTENT BETWEEN)
-2. **Duplicate Pattern**: Same paragraph text appears in multiple block_ids
-3. **Missing Content Pattern**: Section has heading but minimal/no supporting content
-4. **Poor Quality Pattern**: Content is too vague, generic, or unhelpful
+2. **Duplicate Content Pattern**: Same paragraph text appears in multiple block_ids
+3. **Duplicate Heading Pattern**: Same heading text appears MULTIPLE TIMES (e.g., two "### Prerequisites" sections)
+4. **Missing Content Pattern**: Section has heading but minimal/no supporting content
+5. **Poor Quality Pattern**: Content is too vague, generic, or unhelpful
+
+**CRITICAL: Detecting Duplicate Headings**
+If you see the SAME h2 or h3 heading text appearing multiple times in the page:
+- Example: "### Prerequisites" appears at line 20 AND line 50
+- Example: "## Quick Start" appears twice
+- This is a CRITICAL duplicate heading issue
+- Report ALL occurrences with their block_ids
+- Recommend: Keep the first occurrence (with best content), delete all duplicates
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CONCRETE EXAMPLES
@@ -363,7 +407,31 @@ Output:
 }}
 ```
 
-**Example 2: Detecting Duplicate Content**
+**Example 2: Detecting Duplicate Headings (CRITICAL)**
+```
+Input blocks:
+- Block 5: {{"type": "heading_3", "text": "Prerequisites", "block_id": "abc-111"}}
+- Block 6: {{"type": "paragraph", "text": "Python 3.8+"}}
+- Block 15: {{"type": "heading_3", "text": "Prerequisites", "block_id": "abc-222"}}
+- Block 16: {{"type": "paragraph", "text": "Python 3.8+"}}
+
+Analysis: CRITICAL - Duplicate heading detected!
+Output:
+{{
+  "duplicate_headings_detected": [{{
+    "heading_text": "Prerequisites",
+    "heading_type": "heading_3",
+    "occurrences": [
+      {{"block_id": "abc-111", "position": "First occurrence at block 5"}},
+      {{"block_id": "abc-222", "position": "Second occurrence at block 15 (DUPLICATE)"}}
+    ],
+    "action_required": "Delete block abc-222 and its content (duplicate section)",
+    "severity": "critical"
+  }}]
+}}
+```
+
+**Example 3: Detecting Duplicate Content**
 ```
 Input blocks:
 - Block 5: {{"type": "paragraph", "text": "Install dependencies and run", "block_id": "xyz-111"}}

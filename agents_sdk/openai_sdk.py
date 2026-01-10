@@ -484,6 +484,27 @@ def add_mixed_blocks(page_id: str, blocks: List[ContentBlock]) -> Dict[str, Any]
     return notion_service.append_blocks(input_str)
 
 
+@function_tool
+def delete_block(block_id: str) -> Dict[str, Any]:
+    """
+    Delete a block by its ID. Use this to remove duplicate sections or unwanted content.
+    
+    WARNING: This is irreversible - the block will be permanently deleted.
+    
+    Common use cases:
+    - Remove duplicate headings (e.g., two "Prerequisites" sections)
+    - Delete duplicate content blocks
+    - Clean up incorrectly placed blocks
+    
+    Args:
+        block_id: The Notion block ID to delete
+        
+    Returns:
+        Dictionary with success status and confirmation message
+    """
+    return notion_service.delete_block(block_id)
+
+
 # ============================================================================
 # JUDGE AGENT AS TOOL (WITH DYNAMIC CONTEXT)
 # ============================================================================
@@ -626,6 +647,7 @@ ALL_TOOLS = [
     update_notion_section,
     insert_blocks_after_text,
     append_paragraphs,
+    delete_block,  # Delete duplicate or unwanted blocks
     # Judge agent as tool (with dynamic context support)
     review_documentation_quality,
 ]

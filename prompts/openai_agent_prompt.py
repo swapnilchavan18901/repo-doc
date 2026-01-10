@@ -115,27 +115,53 @@ You already fetched the page content. Now review:
 - **Are there any EMPTY sections (headings with no content)?**
 - **Is there DUPLICATE content (same text appearing multiple times)?**
 
-### Step 2.5: Handle Missing or Deleted Sections (CRITICAL)
+### Step 2.5: Handle Missing or Deleted Sections (CRITICAL - READ CAREFULLY!)
 
-**BEFORE adding any new content, check if sections already exist!**
+**BEFORE adding any new content, you MUST:**
 
-If you find sections with:
+1. **Read the ENTIRE page content** using `get_notion_page_content(page_id)`
+2. **Build a mental map of ALL existing headings** (h2 and h3)
+3. **Check if the section you want to add ALREADY EXISTS**
+
+**Decision Tree:**
+```
+Want to add "### Prerequisites"?
+├─ Does "### Prerequisites" heading already exist? YES
+│  ├─ Is it empty? YES → Use insert_blocks_after_text to fill it
+│  └─ Has content? YES → Use update_notion_section to improve/replace it
+└─ Does "### Prerequisites" heading already exist? NO
+   └─ Safe to create new section
+```
+
+**If you find sections with:**
 - **Empty headings** (h2/h3 with no content after them) → Fill them using `insert_blocks_after_text`
 - **Partial sections** (section exists but is incomplete) → Add missing content using `insert_blocks_after_text`
+- **Duplicate headings** (same h2/h3 text appears multiple times) → Delete all but the best one
 - **Duplicate content** (same text appearing multiple times) → Use `update_notion_section` to replace with deduplicated content
 - **Content at the END that should be INSIDE sections** → DO NOT ADD MORE! Instead, reorganize using `update_notion_section`
 
 **CRITICAL RULES FOR HANDLING DELETED/MISSING CONTENT:**
-1. ❌ **NEVER append content at the end of the page if sections already exist**
-2. ✅ **ALWAYS insert content AFTER the appropriate section heading** using `insert_blocks_after_text`
-3. ✅ **Check the entire page structure BEFORE adding content** - if you see duplicate sections, fix them first
-4. ✅ **If a section heading exists but content is missing** → Use `insert_blocks_after_text(after_text="Section Name", blocks=[...])`
-5. ❌ **DO NOT create duplicate sections** - if "Executive Overview" already exists, don't add another one!
+1. ❌ **NEVER create a heading that already exists on the page** (causes duplicates!)
+2. ❌ **NEVER append content at the end of the page if sections already exist**
+3. ✅ **ALWAYS read page content FIRST to see what headings already exist**
+4. ✅ **ALWAYS insert content AFTER the appropriate section heading** using `insert_blocks_after_text`
+5. ✅ **Check the entire page structure BEFORE adding content** - if you see duplicate sections, fix them first
+6. ✅ **If a section heading exists but content is missing** → Use `insert_blocks_after_text(after_text="Section Name", blocks=[...])`
+7. ❌ **DO NOT create duplicate sections** - if "Prerequisites" already exists, don't add another "Prerequisites"!
 
 **Example: Fixing empty sections found during update**
 ```python
-# BAD - This adds to the end:
-add_mixed_blocks(page_id, [{{"type": "h2", "text": "Executive Overview"}}, ...])  # ❌ WRONG!
+# Step 1: ALWAYS read the page first
+page_content = get_notion_page_content(page_id)
+# Review: Does "Executive Overview" heading already exist? YES
+# Review: Is it empty? YES
+# Review: Does "Prerequisites" heading already exist? YES (it appears!)
+
+# BAD - This creates duplicates:
+add_mixed_blocks(page_id, [
+    {{"type": "h3", "text": "Prerequisites"}},  # ❌ WRONG! It already exists!
+    {{"type": "bullet", "text": "Python 3.8+"}}
+])
 
 # GOOD - This fills existing empty section:
 insert_blocks_after_text(
@@ -144,6 +170,15 @@ insert_blocks_after_text(
     blocks=[
         {{"type": "paragraph", "text": "Content goes here..."}},
         {{"type": "paragraph", "text": "More content..."}}
+    ]
+)  # ✅ CORRECT!
+
+insert_blocks_after_text(
+    page_id=page_id,
+    after_text="Prerequisites",  # It exists, just add content under it
+    blocks=[
+        {{"type": "bullet", "text": "Python 3.8+"}},
+        {{"type": "bullet", "text": "Notion API key"}}
     ]
 )  # ✅ CORRECT!
 ```
@@ -339,7 +374,56 @@ insert_blocks_after_text(
 
 **DO THIS FOR EVERY EMPTY SECTION IMMEDIATELY - NO DELAYS, NO ASKING**
 
-#### Fix Type 2: Duplicate Content (HIGH PRIORITY - COMMON ISSUE)
+#### Fix Type 2: Duplicate Headings (CRITICAL PRIORITY - MUST FIX IMMEDIATELY)
+When judge reports in `duplicate_headings_detected`:
+
+**This is a CRITICAL issue - same heading appears multiple times on the page!**
+
+Example: Two "### Prerequisites" sections, two "### Verification" sections, etc.
+
+**Root cause:** The agent created a section, then created it AGAIN instead of checking if it exists.
+
+**Fix strategy - DELETE THE DUPLICATES:**
+1. Read the page to see which occurrence has better content
+2. **USE delete_block(block_id) to DELETE the duplicate heading**
+3. **If there's content after the duplicate heading, delete those blocks too**
+4. Keep only the best version
+
+**EXACT EXECUTION PATTERN:**
+```python
+# Judge reports:
+{{
+  "duplicate_headings_detected": [{{
+    "heading_text": "Prerequisites",
+    "occurrences": [
+      {{"block_id": "abc-123", "position": "First occurrence"}},
+      {{"block_id": "def-456", "position": "Second occurrence (DUPLICATE)"}}
+    ],
+    "action_required": "Delete duplicate block def-456"
+  }}]
+}}
+
+# Step 1: Read page to see content under each heading
+page_content = get_notion_page_content(page_id)
+
+# Step 2: Determine which to keep (usually keep first, delete second)
+# Step 3: DELETE the duplicate heading using delete_block tool
+delete_block("def-456")  # Deletes the duplicate "Prerequisites" heading
+
+# Step 4: If needed, delete content blocks that were under the duplicate heading
+# (Look at the page structure - content after def-456 until next heading)
+
+# Step 5: If the kept section needs better content, update it
+update_notion_section(
+    page_id=page_id,
+    heading_text="Prerequisites",
+    content_blocks=[...merged or improved content...]
+)
+```
+
+**CRITICAL:** Always use `delete_block(block_id)` to remove duplicate headings!
+
+#### Fix Type 3: Duplicate Content (HIGH PRIORITY - COMMON ISSUE)
 When judge reports in `duplicate_content_detected` OR you see duplicate sections/content:
 
 **This often happens when content is appended at the end instead of inserted into existing sections!**
@@ -378,7 +462,7 @@ insert_blocks_after_text(
 - ✅ Always use `insert_blocks_after_text` to add to existing sections
 - ✅ Read the full page content first to see what already exists
 
-#### Fix Type 3: Regenerate Poor Quality Blocks
+#### Fix Type 4: Regenerate Poor Quality Blocks
 When judge reports in `blocks_to_regenerate`:
 
 ```python
@@ -395,7 +479,7 @@ When judge reports in `blocks_to_regenerate`:
 # You execute the suggested method with improved content
 ```
 
-#### Fix Type 4: Follow Priority Actions
+#### Fix Type 5: Follow Priority Actions
 The judge provides `priority_actions` array with EXACT tool calls:
 
 ```python
@@ -418,12 +502,13 @@ The judge provides `priority_actions` array with EXACT tool calls:
 ```
 
 ### Step 3 Execution Order (EXECUTE AUTOMATICALLY):
-1. **Fix all empty sections first** (from `blocks_needing_content_after`) → CALL insert_blocks_after_text for each
-2. **Remove duplicates** (from `duplicate_content_detected`) → CALL update_notion_section to recreate section without duplicates
-3. **Fix critical issues** with block_id references → CALL the suggested tool immediately
-4. **Regenerate poor blocks** (from `blocks_to_regenerate`) → CALL update_notion_section with improved content
-5. **Fix major issues** → CALL the suggested tools immediately
-6. **Fix minor issues** → CALL the suggested tools immediately
+1. **Fix duplicate headings FIRST** (from `duplicate_headings_detected`) → CRITICAL! Delete duplicate sections immediately
+2. **Fix all empty sections** (from `blocks_needing_content_after`) → CALL insert_blocks_after_text for each
+3. **Remove duplicate content** (from `duplicate_content_detected`) → CALL update_notion_section to recreate section without duplicates
+4. **Fix critical issues** with block_id references → CALL the suggested tool immediately
+5. **Regenerate poor blocks** (from `blocks_to_regenerate`) → CALL update_notion_section with improved content
+6. **Fix major issues** → CALL the suggested tools immediately
+7. **Fix minor issues** → CALL the suggested tools immediately
 
 ### Step 4: Re-Review After Fixes (AUTOMATIC)
 - Immediately call `review_documentation_quality` again with same parameters

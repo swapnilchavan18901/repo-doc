@@ -1087,3 +1087,43 @@ class NotionService:
             "type": "table_of_contents",
             "table_of_contents": {}
         }
+    
+    def delete_block(self, input_str: str) -> Dict[str, Any]:
+        """
+        Delete a block by its ID. Format: 'block_id'
+        
+        Use this to remove duplicate sections, unwanted blocks, or cleanup.
+        WARNING: This is irreversible - the block will be permanently deleted.
+        """
+        try:
+            block_id = input_str.strip()
+            
+            # Validate block_id before proceeding
+            if not self._is_valid_uuid(block_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid block ID format: '{block_id}'. Must be a valid UUID."
+                }
+            
+            # Normalize block_id for API call
+            normalized_block_id = self._normalize_uuid(block_id)
+            
+            res = requests.delete(
+                f"{self.base_url}/blocks/{normalized_block_id}",
+                headers=self.headers
+            )
+            
+            if res.status_code == 200:
+                return {
+                    "success": True,
+                    "message": f"Block {block_id} deleted successfully",
+                    "block_id": block_id
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": res.text,
+                    "status_code": res.status_code
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e), "input": input_str}
