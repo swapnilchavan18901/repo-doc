@@ -156,11 +156,11 @@ You already fetched the page content. Now review:
 **Example of CORRECT structure**:
 ```python
 blocks = [
-    {"type": "h2", "text": "Executive Overview"},  # Heading
-    {"type": "paragraph", "text": "This system does X..."},  # Content paragraph 1
-    {"type": "paragraph", "text": "It provides Y benefits..."},  # Content paragraph 2
-    {"type": "h2", "text": "Quick Start"},  # Next heading
-    {"type": "paragraph", "text": "Follow these steps..."},  # Content
+    {{"type": "h2", "text": "Executive Overview"}},  # Heading
+    {{"type": "paragraph", "text": "This system does X..."}},  # Content paragraph 1
+    {{"type": "paragraph", "text": "It provides Y benefits..."}},  # Content paragraph 2
+    {{"type": "h2", "text": "Quick Start"}},  # Next heading
+    {{"type": "paragraph", "text": "Follow these steps..."}},  # Content
     # ... etc
 ]
 ```
@@ -168,8 +168,8 @@ blocks = [
 **Example of WRONG structure (DO NOT DO THIS)**:
 ```python
 blocks = [
-    {"type": "h2", "text": "Executive Overview"},  # Heading
-    {"type": "h2", "text": "Quick Start"},  # Another heading - WRONG! No content after Executive Overview!
+    {{"type": "h2", "text": "Executive Overview"}},  # Heading
+    {{"type": "h2", "text": "Quick Start"}},  # Another heading - WRONG! No content after Executive Overview!
 ]
 ```
 
@@ -208,26 +208,26 @@ When judge reports in `empty_sections_detected` or `blocks_needing_content_after
 
 ```python
 # Judge provides:
-{
-  "blocks_needing_content_after": [{
+{{
+  "blocks_needing_content_after": [{{
     "heading_block_id": "abc-123",
     "heading_text": "Executive Overview",
     "suggested_blocks": [
-      {"type": "paragraph", "text": "This system automates..."},
-      {"type": "paragraph", "text": "Key benefits include..."}
+      {{"type": "paragraph", "text": "This system automates..."}},
+      {{"type": "paragraph", "text": "Key benefits include..."}}
     ],
     "use_tool": "insert_blocks_after_text",
     "priority": "critical"
-  }]
-}
+  }}]
+}}
 
 # You execute:
 insert_blocks_after_text(
     page_id="page-id-from-context",
     after_text="Executive Overview",
     blocks=[
-        {"type": "paragraph", "text": "This system automates..."},
-        {"type": "paragraph", "text": "Key benefits include..."}
+        {{"type": "paragraph", "text": "This system automates..."}},
+        {{"type": "paragraph", "text": "Key benefits include..."}}
     ]
 )
 ```
@@ -237,12 +237,12 @@ When judge reports in `duplicate_content_detected`:
 
 ```python
 # Judge provides:
-{
-  "duplicate_content_detected": [{
+{{
+  "duplicate_content_detected": [{{
     "block_ids": ["block-1", "block-2"],
     "action_required": "Keep block-1, delete block-2"
-  }]
-}
+  }}]
+}}
 
 # You execute: (Note: You may need to recreate section without the duplicate)
 update_notion_section(
@@ -257,14 +257,14 @@ When judge reports in `blocks_to_regenerate`:
 
 ```python
 # Judge provides:
-{
-  "blocks_to_regenerate": [{
+{{
+  "blocks_to_regenerate": [{{
     "block_id": "xyz-789",
     "current_text": "Generic unhelpful text",
     "suggested_replacement": "Specific improved content",
     "regeneration_method": "update_notion_section"
-  }]
-}
+  }}]
+}}
 
 # You execute the suggested method with improved content
 ```
@@ -274,19 +274,19 @@ The judge provides `priority_actions` array with EXACT tool calls:
 
 ```python
 # Judge provides:
-{
+{{
   "priority_actions": [
-    {
+    {{
       "priority": 1,
       "action": "Fix empty section: Executive Overview",
       "tool": "insert_blocks_after_text",
-      "params": {
+      "params": {{
         "after_text": "Executive Overview",
-        "blocks": [{"type": "paragraph", "text": "Content"}]
-      }
-    }
+        "blocks": [{{"type": "paragraph", "text": "Content"}}]
+      }}
+    }}
   ]
-}
+}}
 
 # Execute each priority action in order using the exact tool and params provided
 ```
