@@ -501,18 +501,21 @@ class NotionService:
                 headers=self.headers
             )
 
-        # Insert new blocks after heading
+        # Insert new blocks after heading as siblings (not children)
         heading_block_id = blocks[start_index]["id"]
         
-        # Normalize block_id for API call
-        normalized_block_id = self._normalize_uuid(heading_block_id)
+        # Normalize IDs for API call
+        normalized_page_id = self._normalize_uuid(page_id)
+        normalized_heading_id = self._normalize_uuid(heading_block_id)
 
+        # FIX: Use 'after' parameter to insert blocks as SIBLINGS after the heading
         payload = {
-            "children": new_blocks
+            "children": new_blocks,
+            "after": normalized_heading_id  # Insert AFTER heading as sibling, not as child
         }
 
         res = requests.patch(
-            f"{self.base_url}/blocks/{normalized_block_id}/children",
+            f"{self.base_url}/blocks/{normalized_page_id}/children",
             headers=self.headers,
             json=payload
         )
@@ -520,7 +523,8 @@ class NotionService:
         if res.status_code != 200:
             return {
                 "success": False,
-                "error": res.text
+                "error": res.text,
+                "status_code": res.status_code
             }
 
         return {
@@ -806,15 +810,27 @@ class NotionService:
             return {"success": False, "error": str(e), "input": input_str}
 
     def insert_after_block(self, input_str: str) -> Dict[str, Any]:
-        """Insert blocks after block ID. Format: 'block_id|blocks_json'"""
+        """
+        Insert blocks after block ID. Format: 'parent_id|after_block_id|blocks_json'
+        
+        IMPORTANT: This inserts blocks as SIBLINGS after the target block.
+        The parent_id is typically the page_id for top-level blocks.
+        """
         try:
-            if '|' not in input_str:
-                return {"success": False, "error": "Input must be in format 'block_id|blocks_json'"}
+            parts = input_str.split('|', 2)
+            if len(parts) != 3:
+                return {"success": False, "error": "Input must be in format 'parent_id|after_block_id|blocks_json'"}
             
-            after_block_id, blocks_json = input_str.split('|', 1)
+            parent_id, after_block_id, blocks_json = parts
+            parent_id = parent_id.strip()
             after_block_id = after_block_id.strip()
             
-            # Validate block_id before proceeding
+            # Validate IDs before proceeding
+            if not self._is_valid_uuid(parent_id):
+                return {
+                    "success": False,
+                    "error": f"Invalid parent ID format: '{parent_id}'. Must be a valid UUID."
+                }
             if not self._is_valid_uuid(after_block_id):
                 return {
                     "success": False,
@@ -827,16 +843,26 @@ class NotionService:
         except Exception as e:
             return {"success": False, "error": f"Failed to parse input: {str(e)}", "input": input_str}
         
-        # Normalize block_id for API call
-        normalized_block_id = self._normalize_uuid(after_block_id)
+        # Normalize IDs for API call
+        normalized_parent_id = self._normalize_uuid(parent_id)
+        normalized_after_id = self._normalize_uuid(after_block_id)
+        
+        # FIX: Use parent's children endpoint with 'after' parameter
         res = requests.patch(
-            f"{self.base_url}/blocks/{normalized_block_id}/children",
+            f"{self.base_url}/blocks/{normalized_parent_id}/children",
             headers=self.headers,
-            json={"children": new_blocks}
+            json={
+                "children": new_blocks,
+                "after": normalized_after_id  # Insert AFTER this block as sibling
+            }
         )
 
         if res.status_code != 200:
-            return {"success": False, "error": res.text}
+            return {
+                "success": False,
+                "error": res.text,
+                "status_code": res.status_code
+            }
 
         return {
             "success": True,
@@ -882,8 +908,32 @@ class NotionService:
                 "error": f"Block with text '{after_text}' not found"
             }
 
-        block_input = f"{target_block['id']}|{blocks_json}"
-        return self.insert_after_block(block_input)
+        # FIX: Use the 'after' parameter to insert blocks as SIBLINGS, not children
+        # Insert after the target block by appending to the page with 'after' parameter
+        normalized_page_id = self._normalize_uuid(page_id)
+        normalized_target_block_id = self._normalize_uuid(target_block['id'])
+        
+        res = requests.patch(
+            f"{self.base_url}/blocks/{normalized_page_id}/children",
+            headers=self.headers,
+            json={
+                "children": new_blocks,
+                "after": normalized_target_block_id  # Insert AFTER this block as sibling
+            }
+        )
+
+        if res.status_code != 200:
+            return {
+                "success": False,
+                "error": res.text,
+                "status_code": res.status_code
+            }
+
+        return {
+            "success": True,
+            "inserted_blocks": len(new_blocks),
+            "inserted_after": after_text
+        }
 
     #block builder
     def h1(self, text: str) -> Dict[str, Any]:
