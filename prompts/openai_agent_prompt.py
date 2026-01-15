@@ -39,7 +39,7 @@ You will automatically determine whether to CREATE new documentation or UPDATE e
    - Check if any page documents this specific project
 
 2. **Search by repository name** using `search_page_by_title()`:
-   - Try searching with the repository name (e.g., "repo-doc", "owner/repo")
+   - Try searching with the exact repository name (e.g., "my-reponame")
    - Look for exact or partial matches
 
 3. **Verify if page matches** (if found):
@@ -63,6 +63,7 @@ You will automatically determine whether to CREATE new documentation or UPDATE e
 
 When updating existing pages, you MUST:
 1. **Read the full page content first** using `get_notion_page_content(page_id)`
+   - This retrieves ALL blocks with automatic pagination (supports 100+ blocks)
 2. **Identify which sections already exist** (look for h2 headings like "Executive Overview", "Quick Start", etc.)
 3. **Use `insert_blocks_after_text`** to add content UNDER existing section headings
 4. **NEVER use `add_mixed_blocks`** to append content at the end - this creates duplicates!
@@ -120,6 +121,9 @@ You already fetched the page content. Now review:
 **BEFORE adding any new content, you MUST:**
 
 1. **Read the ENTIRE page content** using `get_notion_page_content(page_id)`
+   - **Note**: This function automatically handles pagination for long documents (100+ blocks)
+   - You will receive ALL blocks from the page regardless of length
+   - Enterprise docs with 200-500+ blocks are fully supported
 2. **Build a mental map of ALL existing headings** (h2 and h3)
 3. **Check if the section you want to add ALREADY EXISTS**
 
@@ -238,7 +242,10 @@ insert_blocks_after_text(
 
 ### Step 2: Create Single Comprehensive Page
 1. **Create the page** using `create_notion_doc_page(database_id, title)`
-   - Use a clear title that includes the repository name
+   - **IMPORTANT**: Use ONLY the repository name as the title (e.g., "my-reponame")
+   - Do NOT add prefixes like "Documentation for", suffixes like "- Technical Docs", or any other text
+   - Examples: If repo is "github-webhooks", title = "github-webhooks"
+   - Examples: If repo is "acme/api-gateway", title = "acme/api-gateway"
 
 2. **Add ALL 8 sections at once** using `add_mixed_blocks(page_id, blocks)`:
 
@@ -709,6 +716,7 @@ Example: Two "### Prerequisites" sections, two "### Verification" sections, etc.
 }}
 
 # Step 1: Read page to see content under each heading
+# Note: get_notion_page_content handles pagination automatically - retrieves ALL blocks
 page_content = get_notion_page_content(page_id)
 
 # Step 2: Determine which to keep (usually keep first, delete second)

@@ -185,14 +185,17 @@ Use step="output" ONLY when ALL of the following are TRUE:
 **Use When**: You need to check if a page exists or get its page_id by title
 
 #### 4. get_notion_page_content
-**Purpose**: Read all content blocks from a page, organized by sections
+**Purpose**: Read all content blocks from a page, organized by sections (handles long documents automatically with pagination)
 **Input Format**: `'page_id'`
 **Example**: `'2dd22f89-689b-81d7-8338-f23f55d324bb'`
 **Returns**:
 - `success`: True/False
+- `total_blocks`: Total number of blocks retrieved from the page (includes all block types)
+- `content_blocks`: Number of content blocks processed (headings, paragraphs, bullets)
 - `sections`: Array of content blocks with section number, type (heading_1/heading_2/heading_3/paragraph/bullet/etc.), text, block_id
 - `total_sections`: Number of heading sections
 **Use When**: You need to read existing page content before updating or to verify what's already documented
+**Note**: This function automatically handles pagination for documents with 100+ blocks
 
 #### 5. create_notion_doc_page
 **Purpose**: Create a new blank page in a database

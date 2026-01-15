@@ -426,21 +426,54 @@ class NotionService:
         }
   
     def get_page_blocks(self, page_id: str) -> List[Dict[str, Any]]:
+        """Get all blocks from a page with pagination support.
+        
+        Notion's API returns max 100 blocks per request. This method handles
+        pagination automatically to retrieve all blocks from long documents.
+        
+        Args:
+            page_id: The Notion page ID
+            
+        Returns:
+            List of all blocks from the page
+            
+        Raises:
+            ValueError: If page_id format is invalid
+            Exception: If API request fails
+        """
         # Validate page_id
         if not self._is_valid_uuid(page_id):
             raise ValueError(f"Invalid page ID format: {page_id}. Must be a valid UUID.")
         
         # Normalize page_id for API call
         normalized_page_id = self._normalize_uuid(page_id)
-        res = requests.get(
-            f"{self.base_url}/blocks/{normalized_page_id}/children",
-            headers=self.headers
-        )
-
-        if res.status_code != 200:
-            raise Exception(res.text)
-
-        return res.json()["results"]
+        
+        all_blocks = []
+        start_cursor = None
+        has_more = True
+        
+        # Loop through all pages of results
+        while has_more:
+            # Build URL with cursor if needed
+            url = f"{self.base_url}/blocks/{normalized_page_id}/children"
+            params = {"page_size": 100}  # Max allowed by Notion API
+            
+            if start_cursor:
+                params["start_cursor"] = start_cursor
+            
+            res = requests.get(url, headers=self.headers, params=params)
+            
+            if res.status_code != 200:
+                raise Exception(res.text)
+            
+            data = res.json()
+            all_blocks.extend(data.get("results", []))
+            
+            # Check if there are more pages
+            has_more = data.get("has_more", False)
+            start_cursor = data.get("next_cursor")
+        
+        return all_blocks
 
     def replace_section(self, input_str: str) -> Dict[str, Any]:
         """Replace section. Format: 'page_id|heading_text|content_blocks_json'"""
@@ -539,7 +572,11 @@ class NotionService:
         return "".join(rt["text"]["content"] for rt in rich_text if rt["type"] == "text")
     
     def get_page_content(self, input_str: str) -> Dict[str, Any]:
-        """Get content from a Notion page with block structure. Format: 'page_id'"""
+        """Get content from a Notion page with block structure. Format: 'page_id'
+        
+        This method retrieves ALL blocks from a page (with automatic pagination for long documents).
+        Content is organized by sections (headings) for easy editing.
+        """
         try:
             page_id = input_str.strip()
             
@@ -581,9 +618,11 @@ class NotionService:
             return {
                 "success": True,
                 "page_id": page_id,
+                "total_blocks": len(blocks),
+                "content_blocks": len(content_sections),
                 "sections": content_sections,
                 "total_sections": section_count,
-                "note": "Content organized by sections for easy section-based editing"
+                "note": "Content organized by sections. All blocks retrieved via pagination for long documents."
             }
         except Exception as e:
             return {"success": False, "error": str(e), "page_id": input_str}
