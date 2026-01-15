@@ -537,7 +537,7 @@ async def judge_notion_docs(
                 name="Documentation Quality Judge",
                 instructions=system_prompt,
                 tools=JUDGE_TOOLS,  # Judge only gets READ-ONLY tools
-                model="gpt-5-nano"
+                model="gpt-5.2"
             )
             print(f"✅ Agent created successfully with READ-ONLY tools")
         except Exception as agent_error:

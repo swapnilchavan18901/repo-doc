@@ -580,7 +580,7 @@ async def review_documentation_quality(
             tools=[
                 get_notion_page_content,
             ],
-            model="gpt-5-nano"
+            model="gpt-5.2"
         )
         
         # Build analysis task
@@ -718,7 +718,7 @@ async def generate_notion_docs(
                 name="Documentation Generator",
                 instructions=system_prompt,
                 tools=ALL_TOOLS,
-                model="gpt-5-nano"
+                model="gpt-5.2"
             )
             print(f"✅ Agent created successfully")
         except Exception as agent_error:
