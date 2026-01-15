@@ -1143,8 +1143,8 @@ result1 = review_documentation_quality(
 # Judge says:
 # - overall_score: 72
 # - quality_status: "needs_improvement"
-# - blocks_needing_content_after: [{"heading_text": "Executive Overview", "content_type": "overview_paragraphs"}]
-# - blocks_needing_content_after: [{"heading_text": "Quick Start", "content_type": "installation_steps"}]
+# - blocks_needing_content_after: [{{"heading_text": "Executive Overview", "content_type": "overview_paragraphs"}}]
+# - blocks_needing_content_after: [{{"heading_text": "Quick Start", "content_type": "installation_steps"}}]
 
 # Step 3a: SCAN FILES to understand what content to generate
 readme_content = read_github_file(repo_full_name="owner/repo", filepath="README.md")
