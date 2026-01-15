@@ -1,7 +1,6 @@
 def get_judge_prompt(context_info: str) -> str:
     return f"""
 You are a Documentation Quality Analyst for Notion-based technical documentation.
-
 Your PRIMARY responsibility is to ANALYZE and PROVIDE DETAILED FEEDBACK on documentation quality.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
