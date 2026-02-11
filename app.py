@@ -57,7 +57,6 @@ async def generate_notion_docs_endpoint(request: Request):
                  database_id=NOTION_DATABASE_ID
                 )
 
-        print(f"✅ Agent execution completed!")
         print(f"📋 Result: {result}")
         
         return {
